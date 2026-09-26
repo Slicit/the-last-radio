@@ -102,7 +102,7 @@ function RadiosAdmin() {
               <TableRow>
                 <TableHead>Station</TableHead>
                 <TableHead>Stream</TableHead>
-                <TableHead>Push limit</TableHead>
+                <TableHead>Song limit</TableHead>
                 <TableHead>Max track</TableHead>
                 <TableHead>Queue</TableHead>
                 <TableHead />
@@ -225,7 +225,7 @@ function RadioDialog({ target, onClose }: { target: Radio | "new" | null; onClos
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="r-count">Pushes</Label>
+              <Label htmlFor="r-count">Songs</Label>
               <Input
                 id="r-count"
                 type="number"
@@ -298,7 +298,7 @@ function UsersAdmin({ selfId }: { selfId: string }) {
     <Card>
       <CardHeader>
         <CardTitle>Users</CardTitle>
-        <CardDescription>Admins can manage stations, skip tracks and push without limits.</CardDescription>
+        <CardDescription>Admins can manage stations, skip songs and add without limits.</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -309,7 +309,7 @@ function UsersAdmin({ selfId }: { selfId: string }) {
               <TableRow>
                 <TableHead>User</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead className="text-right">Pushes</TableHead>
+                <TableHead className="text-right">Added</TableHead>
                 <TableHead className="text-right">Aired</TableHead>
                 <TableHead className="text-right">Joined</TableHead>
               </TableRow>

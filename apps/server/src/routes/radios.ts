@@ -1,12 +1,13 @@
 import { Hono } from "hono";
 import { zValidator } from "../lib/validate.js";
 import { z } from "zod";
-import { and, asc, desc, eq, gt, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { db, schema } from "../db/index.js";
 import type { Radio } from "../db/schema.js";
 import { type AppEnv, type PublicUser, requireAdmin, requireUser } from "../lib/auth.js";
 import { probe, ProbeError } from "../lib/ytdlp.js";
+import { knownFromUrl } from "../lib/search.js";
 import { streamStatus } from "../lib/mediamtx.js";
 import { heartbeat, listenerCount } from "../lib/listeners.js";
 
@@ -60,6 +61,7 @@ const itemColumns = {
     durationSec: tracks.durationSec,
     thumbnailUrl: tracks.thumbnailUrl,
     sourceUrl: tracks.sourceUrl,
+    sourceKey: tracks.sourceKey,
   },
   pushedBy: { id: users.id, displayName: users.displayName },
 };
@@ -137,6 +139,18 @@ function quotaError(q: Quota) {
 function publicRadio(r: Radio) {
   const { id, slug, name, description, isActive, rateLimitCount, rateLimitWindowSec, maxTrackSec } = r;
   return { id, slug, name, description, isActive, rateLimitCount, rateLimitWindowSec, maxTrackSec };
+}
+
+async function resolveTrack(url: string) {
+  // Songs picked from our own search results are already known: add them instantly.
+  const known = knownFromUrl(url);
+  if (known) return known;
+  try {
+    return await probe(url);
+  } catch (e) {
+    if (e instanceof ProbeError) throw new HTTPException(422, { message: e.message });
+    throw e;
+  }
 }
 
 // ---------------------------------------------------------------- routes
@@ -289,13 +303,7 @@ export const radioRoutes = new Hono<AppEnv>()
     const pre = await quotaFor(radio, user);
     if (!pre.unlimited && pre.remaining === 0) throw quotaError(pre);
 
-    let meta;
-    try {
-      meta = await probe(c.req.valid("json").url);
-    } catch (e) {
-      if (e instanceof ProbeError) throw new HTTPException(422, { message: e.message });
-      throw e;
-    }
+    const meta = await resolveTrack(c.req.valid("json").url);
     if (meta.durationSec != null && meta.durationSec > radio.maxTrackSec) {
       throw new HTTPException(422, {
         message: `Too long: this radio accepts tracks up to ${Math.round(radio.maxTrackSec / 60)} min`,
@@ -339,11 +347,15 @@ export const radioRoutes = new Hono<AppEnv>()
       const [created] = await tx
         .insert(queueItems)
         .values({ radioId: radio.id, trackId: track.id, userId: user.id })
-        .returning({ id: queueItems.id });
+        .returning({ id: queueItems.id, createdAt: queueItems.createdAt });
       return created;
     });
 
-    return c.json({ id: item.id, track: meta, quota: await quotaFor(radio, user) }, 201);
+    const [{ ahead }] = await db
+      .select({ ahead: sql<number>`count(*)::int` })
+      .from(queueItems)
+      .where(and(eq(queueItems.radioId, radio.id), eq(queueItems.status, "queued"), lt(queueItems.createdAt, item.createdAt)));
+    return c.json({ id: item.id, track: meta, position: ahead + 1, quota: await quotaFor(radio, user) }, 201);
   })
 
   .delete("/:slug/queue/:id", requireUser, async (c) => {

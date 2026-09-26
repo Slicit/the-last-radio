@@ -8,7 +8,10 @@ export type Track = {
   durationSec: number | null;
   thumbnailUrl: string | null;
   sourceUrl: string;
+  sourceKey: string;
 };
+
+export type SearchResult = Omit<Track, "id"> & { videoId: string; views: number | null };
 
 export type QueueItem = {
   id: string;
@@ -55,7 +58,7 @@ export type RadioDetail = {
 };
 
 export type RadioStats = {
-  topTracks: { track: Omit<Track, "durationSec">; plays: number; lastPlayedAt: string }[];
+  topTracks: { track: Omit<Track, "durationSec" | "sourceKey">; plays: number; lastPlayedAt: string }[];
   topPlayers: { user: { id: string; displayName: string }; plays: number; listenedSec: number }[];
   totals: { plays: number; uniqueTracks: number; uniquePlayers: number; airtimeSec: number };
 };
@@ -80,9 +83,10 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method,
+    signal,
     credentials: "same-origin",
     headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -93,7 +97,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>("GET", path),
+  get: <T>(path: string, signal?: AbortSignal) => request<T>("GET", path, undefined, signal),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {}),
   patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, body),
   del: <T>(path: string) => request<T>("DELETE", path),

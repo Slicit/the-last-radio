@@ -8,6 +8,7 @@ import { runMigrations } from "./db/migrate.js";
 import { authRoutes } from "./routes/auth.js";
 import { radioRoutes } from "./routes/radios.js";
 import { userRoutes } from "./routes/users.js";
+import { searchRoutes } from "./routes/search.js";
 
 const app = new Hono<AppEnv>()
   .basePath("/api")
@@ -16,7 +17,8 @@ const app = new Hono<AppEnv>()
   .get("/health", (c) => c.json({ ok: true }))
   .route("/auth", authRoutes)
   .route("/radios", radioRoutes)
-  .route("/users", userRoutes);
+  .route("/users", userRoutes)
+  .route("/search", searchRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);

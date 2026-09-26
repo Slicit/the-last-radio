@@ -19,8 +19,8 @@ export function PlayerBar() {
       : status === "offline"
         ? "Stream offline, retrying…"
         : np
-          ? (np.track.artist ?? `pushed by ${np.pushedBy.displayName}`)
-          : "Dead air, push a track!";
+          ? (np.track.artist ?? `added by ${np.pushedBy.displayName}`)
+          : "Dead air. Add a song!";
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">

@@ -33,7 +33,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
         <CardHeader>
           <CardTitle className="text-xl">{mode === "login" ? "Welcome back" : "Join the radio"}</CardTitle>
           <CardDescription>
-            {mode === "login" ? "Sign in to push tracks." : "Create an account to push tracks to the playlist."}
+            {mode === "login" ? "Sign in to add songs." : "Create an account to add songs to the stations."}
           </CardDescription>
         </CardHeader>
         <CardContent>

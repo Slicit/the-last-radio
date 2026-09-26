@@ -14,11 +14,17 @@ export type ProbeResult = {
 
 export class ProbeError extends Error {}
 
-export function runYtdlp(args: string[], timeoutMs: number): Promise<string> {
+export class AbortedError extends Error {}
+
+export function runYtdlp(args: string[], timeoutMs: number, signal?: AbortSignal): Promise<string> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new AbortedError("aborted"));
     const proc = spawn("yt-dlp", [...YTDLP_BASE_ARGS, ...args], {
       stdio: ["ignore", "pipe", "pipe"],
     });
+    // The caller went away (e.g. the user kept typing): don't burn CPU on it.
+    const onAbort = () => proc.kill("SIGKILL");
+    signal?.addEventListener("abort", onAbort, { once: true });
     let out = "";
     let err = "";
     const timer = setTimeout(() => proc.kill("SIGKILL"), timeoutMs);
@@ -28,10 +34,12 @@ export function runYtdlp(args: string[], timeoutMs: number): Promise<string> {
       clearTimeout(timer);
       reject(e);
     });
-    proc.on("close", (code, signal) => {
+    proc.on("close", (code, killSignal) => {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
       if (code === 0) return resolve(out);
-      if (signal) return reject(new ProbeError("Timed out while reading that link"));
+      if (signal?.aborted) return reject(new AbortedError("aborted"));
+      if (killSignal) return reject(new ProbeError("Timed out while reading that link"));
       const line = err.split("\n").find((l) => l.startsWith("ERROR:")) ?? err.trim();
       reject(new ProbeError(line.replace(/^ERROR:\s*/, "").slice(0, 300) || "yt-dlp failed"));
     });

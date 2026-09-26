@@ -1,16 +1,16 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ExternalLink, Headphones, Loader2, Pause, Play, Plus, SkipForward, Trash2 } from "lucide-react";
+import { ExternalLink, Headphones, Loader2, Pause, Play, SkipForward, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { TrackArt } from "@/components/track-art";
+import { SongSearch } from "@/components/song-search";
 import { OnAir } from "@/components/on-air";
 import { useMe } from "@/hooks/use-auth";
 import { usePlayer } from "@/hooks/use-player";
@@ -63,7 +63,14 @@ export function RadioPage() {
           clockSkewMs={data.clockSkewMs}
           isAdmin={user?.role === "admin"}
         />
-        <PushCard slug={radio.slug} user={user} quota={data.quota} maxTrackSec={radio.maxTrackSec} />
+        <AddSongCard
+          slug={radio.slug}
+          user={user}
+          quota={data.quota}
+          maxTrackSec={radio.maxTrackSec}
+          queue={data.queue}
+          nowPlaying={data.nowPlaying}
+        />
       </div>
 
       <Tabs defaultValue="queue">
@@ -135,10 +142,10 @@ function NowPlaying({
               {item ? (
                 <>
                   {item.track.artist && <>{item.track.artist} · </>}
-                  pushed by <span className="text-foreground">{item.pushedBy.displayName}</span>
+                  added by <span className="text-foreground">{item.pushedBy.displayName}</span>
                 </>
               ) : (
-                "The playlist is empty. Push something!"
+                "The playlist is empty. Add a song!"
               )}
             </div>
           </div>
@@ -191,85 +198,56 @@ function NowPlaying({
   );
 }
 
-// ------------------------------------------------------------------ push
+// ------------------------------------------------------------------ add a song
 
-function QuotaLine({ quota }: { quota: Quota }) {
-  const now = useNow(!!quota.nextSlotAt);
-  if (quota.unlimited) return <span>Admin: no push limit.</span>;
-  const wait = quota.nextSlotAt ? Math.max(0, Math.ceil((Date.parse(quota.nextSlotAt) - now) / 1000)) : 0;
-  return (
-    <span>
-      <span className="font-medium text-foreground">{quota.remaining}</span> of {quota.limit} pushes left per{" "}
-      {windowLabel(quota.windowSec)}
-      {quota.remaining === 0 && wait > 0 && <> · next slot in {duration(wait)}</>}
-    </span>
-  );
-}
-
-function PushCard({
+function AddSongCard({
   slug,
   user,
   quota,
   maxTrackSec,
+  queue,
+  nowPlaying,
 }: {
   slug: string;
   user: User | null;
   quota: Quota | null;
   maxTrackSec: number;
+  queue: QueueItem[];
+  nowPlaying: QueueItem | null;
 }) {
-  const [url, setUrl] = useState("");
-  const qc = useQueryClient();
   const location = useLocation();
-
-  const push = useMutation({
-    mutationFn: (u: string) => api.post<{ track: { title: string } }>(`/radios/${slug}/queue`, { url: u }),
-    onSuccess: (d) => {
-      toast.success(`Queued: ${d.track.title}`);
-      setUrl("");
-      qc.invalidateQueries({ queryKey: ["radio", slug] });
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
   const blocked = !!quota && !quota.unlimited && quota.remaining === 0;
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (url.trim()) push.mutate(url.trim());
-  };
+  const now = useNow(blocked);
+  const wait = blocked && quota.nextSlotAt ? Math.max(0, Math.ceil((Date.parse(quota.nextSlotAt) - now) / 1000)) : 0;
+  const waitLabel = blocked
+    ? wait > 0
+      ? `You can add another song in ${duration(wait)}`
+      : "Almost there…"
+    : null;
 
   return (
-    <Card>
+    // overflow-visible so the results dropdown can extend past the card.
+    <Card className="overflow-visible">
       <CardHeader>
-        <CardTitle>Push a track</CardTitle>
-        <CardDescription>YouTube, SoundCloud, Bandcamp… up to {Math.round(maxTrackSec / 60)} min.</CardDescription>
+        <CardTitle>Add a song</CardTitle>
+        <CardDescription>
+          Search by artist or title, or paste a link. Up to {Math.round(maxTrackSec / 60)} min
+          {quota && !quota.unlimited && <>, {quota.limit} songs every {windowLabel(quota.windowSec)}</>}.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {user ? (
-          <form onSubmit={submit} className="space-y-3">
-            <div className="flex gap-2">
-              <Input
-                type="url"
-                placeholder="https://…"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                disabled={push.isPending}
-                required
-              />
-              <Button type="submit" disabled={push.isPending || blocked}>
-                {push.isPending ? <Loader2 className="animate-spin" /> : <Plus />}
-                Push
-              </Button>
-            </div>
-            {push.isPending && <p className="text-xs text-muted-foreground">Looking up the track…</p>}
-            {quota && (
-              <p className="text-xs text-muted-foreground">
-                <QuotaLine quota={quota} />
-              </p>
-            )}
-          </form>
+          <SongSearch
+            slug={slug}
+            maxTrackSec={maxTrackSec}
+            quota={quota}
+            queue={queue}
+            nowPlaying={nowPlaying}
+            waitLabel={waitLabel}
+          />
         ) : (
           <div className="space-y-3 text-sm text-muted-foreground">
-            <p>Sign in to push tracks onto this station's playlist.</p>
+            <p>Sign in to add songs to this station.</p>
             <Link to="/login" state={{ from: location.pathname }} className={buttonVariants()}>
               Sign in
             </Link>

@@ -20,8 +20,8 @@ export function HomePage() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Tune in.</h1>
         <p className="max-w-xl text-muted-foreground">
-          Every station plays one shared stream, and listeners pick the music. Paste a link to push a
-          track onto the playlist.
+          Every station plays one shared stream, and the listeners pick the music. Find a song, add it,
+          and everyone hears it together.
         </p>
       </div>
 
@@ -65,7 +65,7 @@ export function HomePage() {
                       {r.nowPlaying?.track.title ?? "Waiting for a track"}
                     </div>
                     <div className="truncate text-xs text-muted-foreground">
-                      {r.nowPlaying ? `pushed by ${r.nowPlaying.pushedBy.displayName}` : "Playlist is empty"}
+                      {r.nowPlaying ? `added by ${r.nowPlaying.pushedBy.displayName}` : "Playlist is empty"}
                     </div>
                   </div>
                   <Button
