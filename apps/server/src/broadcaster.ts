@@ -11,7 +11,7 @@ const { radios, queueItems } = schema;
 async function endOrphanedPlays(radioId?: string) {
   await db
     .update(queueItems)
-    .set({ status: "skipped", endedAt: new Date(), error: "Interrupted" })
+    .set({ status: "skipped", skipReason: "interrupted", endedAt: new Date() })
     .where(
       radioId
         ? and(eq(queueItems.status, "playing"), eq(queueItems.radioId, radioId))

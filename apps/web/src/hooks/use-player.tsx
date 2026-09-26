@@ -1,5 +1,6 @@
 import Hls from "hls.js";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 export type Station = { slug: string; name: string };
@@ -55,6 +56,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>("idle");
   const [volume, setVolumeState] = useState(storedVolume);
   const [latency, setLatency] = useState(0);
+  const qc = useQueryClient();
 
   if (!audioRef.current && typeof Audio !== "undefined") audioRef.current = new Audio();
 
@@ -155,10 +157,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (status !== "playing" || !station) return;
     const id = listenerId();
     const beat = () => api.post(`/radios/${station.slug}/listen`, { listenerId: id }).catch(() => {});
-    beat();
+    // Once the server knows we're listening we may vote to skip: refresh right away.
+    beat().then(() => qc.invalidateQueries({ queryKey: ["radio", station.slug], exact: true }));
     const t = window.setInterval(beat, HEARTBEAT_MS);
     return () => window.clearInterval(t);
-  }, [status, station]);
+  }, [status, station, qc]);
 
   useEffect(() => teardown, [teardown]);
 

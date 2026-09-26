@@ -4,8 +4,11 @@ import { and, asc, eq } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { env } from "../lib/env.js";
 import type { AudioCache } from "./cache.js";
+import type { Radio } from "../db/schema.js";
+import { hoursStatus } from "../lib/schedule.js";
+import { alfredTopUp } from "../lib/alfred.js";
 
-const { queueItems, tracks } = schema;
+const { queueItems, tracks, radios } = schema;
 
 const SAMPLE_RATE = 44100;
 const CHANNELS = 2;
@@ -29,6 +32,8 @@ const alignDown = (n: number) => n - (n % FRAME);
  */
 export class Channel {
   private stopped = false;
+  /** False outside broadcast hours: the stream goes away until the next opening. */
+  private wantEncoder = false;
   private encoder: ChildProcess | null = null;
   private clockStart = 0;
   private written = 0;
@@ -47,10 +52,9 @@ export class Channel {
   ) {}
 
   start() {
-    this.startEncoder();
     this.ticker = setInterval(() => this.tick(), TICK_MS);
-    // Tracks pushed mid-song are fetched now, not when their turn comes.
-    this.prefetcher = setInterval(() => void this.prefetch(), 10_000);
+    // Keep the lineup topped up and fetched during long songs, not just between them.
+    this.prefetcher = setInterval(() => void this.maintain(), 10_000);
     void this.loop();
   }
 
@@ -70,8 +74,22 @@ export class Channel {
 
   // ------------------------------------------------------------ encoder
 
+  private setOnAir(on: boolean) {
+    if (on === this.wantEncoder) return;
+    this.wantEncoder = on;
+    if (on) {
+      this.startEncoder();
+    } else {
+      const enc = this.encoder;
+      this.encoder = null;
+      enc?.stdin?.end();
+      enc?.kill("SIGTERM");
+      this.log("off air until the next opening");
+    }
+  }
+
   private startEncoder() {
-    if (this.stopped) return;
+    if (this.stopped || !this.wantEncoder) return;
     const url = `${env.MEDIAMTX_RTSP}/${this.radio.slug}`;
     const enc = spawn(
       "ffmpeg",
@@ -86,8 +104,9 @@ export class Channel {
     enc.stderr!.on("data", (d) => this.log("encoder:", String(d).trim()));
     enc.stdin!.on("error", () => {}); // EPIPE when ffmpeg dies; handled by 'exit'
     enc.on("exit", (code) => {
-      if (this.encoder === enc) this.encoder = null;
-      if (this.stopped) return;
+      const wasCurrent = this.encoder === enc;
+      if (wasCurrent) this.encoder = null;
+      if (!wasCurrent || this.stopped || !this.wantEncoder) return;
       this.log(`encoder exited (${code}), restarting`);
       setTimeout(() => this.startEncoder(), 2000);
     });
@@ -212,8 +231,35 @@ export class Channel {
       .from(queueItems)
       .innerJoin(tracks, eq(tracks.id, queueItems.trackId))
       .where(and(eq(queueItems.radioId, this.radio.id), eq(queueItems.status, "queued")))
-      .orderBy(asc(queueItems.createdAt))
+      // People's picks first, then Alfred's.
+      .orderBy(asc(queueItems.isFill), asc(queueItems.createdAt))
       .limit(limit);
+  }
+
+  private async settings(): Promise<Radio | null> {
+    return (await db.query.radios.findFirst({ where: eq(radios.id, this.radio.id) })) ?? null;
+  }
+
+  private maintaining: Promise<void> | null = null;
+
+  /** Alfred's top-up (open hours only) and fetching the next songs ahead of time. */
+  private maintain(): Promise<void> {
+    // The timer and the between-songs check must not both top up at once.
+    this.maintaining ??= this.doMaintain().finally(() => (this.maintaining = null));
+    return this.maintaining;
+  }
+
+  private async doMaintain() {
+    try {
+      const radio = await this.settings();
+      if (radio && hoursStatus(radio).open) {
+        const picks = await alfredTopUp(radio);
+        if (picks.length) this.log(`Alfred queued: ${picks.join(" · ")}`);
+      }
+    } catch (e) {
+      this.log("alfred:", e);
+    }
+    await this.prefetch();
   }
 
   private async prefetch() {
@@ -229,7 +275,22 @@ export class Channel {
   private async loop() {
     while (!this.stopped) {
       try {
-        const next = await this.upcoming(1);
+        // Between songs is the only time the schedule matters: whatever is
+        // on air when the window closes plays to its end.
+        const radio = await this.settings();
+        if (!radio) break;
+        if (!hoursStatus(radio).open) {
+          this.setOnAir(false);
+          await sleep(5000);
+          continue;
+        }
+        this.setOnAir(true);
+
+        let next = await this.upcoming(1);
+        if (next.length === 0) {
+          await this.maintain();
+          next = await this.upcoming(1);
+        }
         if (next.length === 0) {
           await sleep(1500);
           continue;

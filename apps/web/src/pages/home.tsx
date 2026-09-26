@@ -9,6 +9,7 @@ import { OnAir } from "@/components/on-air";
 import { useRadios } from "@/hooks/use-radio";
 import { usePlayer } from "@/hooks/use-player";
 import { useMe } from "@/hooks/use-auth";
+import { adderName, closedLabel } from "@/lib/format";
 
 export function HomePage() {
   const { data: radios, isLoading } = useRadios();
@@ -56,7 +57,11 @@ export function HomePage() {
                     </Link>
                     <p className="line-clamp-1 text-sm text-muted-foreground">{r.description || `/${r.slug}`}</p>
                   </div>
-                  {r.isActive ? <OnAir live={!!r.nowPlaying} /> : <Badge variant="outline">disabled</Badge>}
+                  {r.isActive ? (
+                    <OnAir live={!!r.nowPlaying} closed={!r.hours.open} />
+                  ) : (
+                    <Badge variant="outline">disabled</Badge>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <TrackArt src={r.nowPlaying?.track.thumbnailUrl} className="size-14" />
@@ -65,7 +70,9 @@ export function HomePage() {
                       {r.nowPlaying?.track.title ?? "Waiting for a track"}
                     </div>
                     <div className="truncate text-xs text-muted-foreground">
-                      {r.nowPlaying ? `added by ${r.nowPlaying.pushedBy.displayName}` : "Playlist is empty"}
+                      {r.nowPlaying
+                        ? `added by ${adderName(r.nowPlaying)}`
+                        : (closedLabel(r.hours) ?? "Playlist is empty")}
                     </div>
                   </div>
                   <Button

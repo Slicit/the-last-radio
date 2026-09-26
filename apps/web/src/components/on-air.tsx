@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 /** Red "on air" pill; grey when the stream isn't being published. */
-export function OnAir({ live, className }: { live: boolean; className?: string }) {
+export function OnAir({ live, closed, className }: { live: boolean; closed?: boolean; className?: string }) {
   return (
     <span
       className={cn(
@@ -11,7 +11,7 @@ export function OnAir({ live, className }: { live: boolean; className?: string }
       )}
     >
       <span className={cn("size-1.5 rounded-full", live ? "animate-pulse bg-red-500" : "bg-muted-foreground")} />
-      {live ? "On air" : "Off air"}
+      {live ? "On air" : closed ? "Closed" : "Off air"}
     </span>
   );
 }

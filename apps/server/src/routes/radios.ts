@@ -9,9 +9,11 @@ import { type AppEnv, type PublicUser, requireAdmin, requireUser } from "../lib/
 import { probe, ProbeError } from "../lib/ytdlp.js";
 import { knownFromUrl } from "../lib/search.js";
 import { streamStatus } from "../lib/mediamtx.js";
-import { heartbeat, listenerCount } from "../lib/listeners.js";
+import { heartbeat, isListening, listenerCount } from "../lib/listeners.js";
+import { applyVotes, skipItem, skipState } from "../lib/skip.js";
+import { hoursStatus, isValidTimezone } from "../lib/schedule.js";
 
-const { radios, queueItems, tracks, users } = schema;
+const { radios, queueItems, tracks, users, skipVotes } = schema;
 
 const slugSchema = z
   .string()
@@ -26,6 +28,16 @@ const radioFields = {
   rateLimitCount: z.number().int().min(1).max(1000),
   rateLimitWindowSec: z.number().int().min(10).max(7 * 24 * 3600),
   maxTrackSec: z.number().int().min(30).max(4 * 3600),
+  skipVotePercent: z.number().int().min(0).max(100),
+  hoursEnabled: z.boolean(),
+  hoursDays: z
+    .array(z.number().int().min(0).max(6))
+    .min(1, "Pick at least one day")
+    .transform((d) => [...new Set(d)].sort()),
+  hoursStart: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM"),
+  hoursEnd: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM"),
+  timezone: z.string().refine(isValidTimezone, "Unknown timezone"),
+  autofillBelowSec: z.number().int().min(0).max(4 * 3600),
 };
 
 const createRadioBody = z.object({ slug: slugSchema, ...radioFields }).partial({
@@ -34,23 +46,35 @@ const createRadioBody = z.object({ slug: slugSchema, ...radioFields }).partial({
   rateLimitCount: true,
   rateLimitWindowSec: true,
   maxTrackSec: true,
+  skipVotePercent: true,
+  hoursEnabled: true,
+  hoursDays: true,
+  hoursStart: true,
+  hoursEnd: true,
+  timezone: true,
+  autofillBelowSec: true,
 });
 const updateRadioBody = z.object(radioFields).partial();
 
-const pushBody = z.object({
-  url: z
-    .string()
-    .trim()
-    .url()
-    .max(2000)
-    .refine((u) => /^https?:\/\//i.test(u), "Only http(s) links"),
-});
+// A link or search pick (url), or a song this station knows already (trackId: "add again").
+const pushBody = z.union([
+  z.object({
+    url: z
+      .string()
+      .trim()
+      .url()
+      .max(2000)
+      .refine((u) => /^https?:\/\//i.test(u), "Only http(s) links"),
+  }),
+  z.object({ trackId: z.string().uuid() }),
+]);
 
 // ---------------------------------------------------------------- queries
 
 const itemColumns = {
   id: queueItems.id,
   status: queueItems.status,
+  skipReason: queueItems.skipReason,
   createdAt: queueItems.createdAt,
   startedAt: queueItems.startedAt,
   endedAt: queueItems.endedAt,
@@ -63,6 +87,8 @@ const itemColumns = {
     sourceUrl: tracks.sourceUrl,
     sourceKey: tracks.sourceKey,
   },
+  isFill: queueItems.isFill,
+  // Null for Alfred's picks.
   pushedBy: { id: users.id, displayName: users.displayName },
 };
 
@@ -71,7 +97,16 @@ const itemsQuery = () =>
     .select(itemColumns)
     .from(queueItems)
     .innerJoin(tracks, eq(tracks.id, queueItems.trackId))
-    .innerJoin(users, eq(users.id, queueItems.userId));
+    .leftJoin(users, eq(users.id, queueItems.userId));
+
+async function onAir(radioId: string) {
+  const [row] = await db
+    .select({ id: queueItems.id, userId: queueItems.userId })
+    .from(queueItems)
+    .where(and(eq(queueItems.radioId, radioId), eq(queueItems.status, "playing")))
+    .limit(1);
+  return row ?? null;
+}
 
 async function getRadio(slug: string): Promise<Radio> {
   const radio = await db.query.radios.findFirst({ where: eq(radios.slug, slug) });
@@ -85,7 +120,7 @@ async function nowPlaying(radioIds: string[]) {
     .select({ radioId: queueItems.radioId, ...itemColumns })
     .from(queueItems)
     .innerJoin(tracks, eq(tracks.id, queueItems.trackId))
-    .innerJoin(users, eq(users.id, queueItems.userId))
+    .leftJoin(users, eq(users.id, queueItems.userId))
     .where(and(inArray(queueItems.radioId, radioIds), eq(queueItems.status, "playing")));
   return new Map(rows.map(({ radioId, ...item }) => [radioId, item]));
 }
@@ -132,16 +167,23 @@ function quotaError(q: Quota) {
   const wait = q.nextSlotAt ? Math.ceil((Date.parse(q.nextSlotAt) - Date.now()) / 1000) : 0;
   const mins = Math.max(1, Math.ceil(wait / 60));
   return new HTTPException(429, {
-    message: `You've used your ${q.limit} pushes for this window. Next slot in ~${mins} min.`,
+    message: `You've added your ${q.limit} songs for now. You can add another in ~${mins} min.`,
   });
 }
 
 function publicRadio(r: Radio) {
-  const { id, slug, name, description, isActive, rateLimitCount, rateLimitWindowSec, maxTrackSec } = r;
-  return { id, slug, name, description, isActive, rateLimitCount, rateLimitWindowSec, maxTrackSec };
+  const { createdAt: _c, ...fields } = r;
+  return { ...fields, hours: hoursStatus(r) };
 }
 
-async function resolveTrack(url: string) {
+async function resolveTrack(body: { url: string } | { trackId: string }) {
+  if ("trackId" in body) {
+    const t = await db.query.tracks.findFirst({ where: eq(tracks.id, body.trackId) });
+    if (!t) throw new HTTPException(404, { message: "Unknown song" });
+    const { id: _id, createdAt: _c, ...meta } = t;
+    return meta;
+  }
+  const url = body.url;
   // Songs picked from our own search results are already known: add them instantly.
   const known = knownFromUrl(url);
   if (known) return known;
@@ -194,12 +236,15 @@ export const radioRoutes = new Hono<AppEnv>()
       nowPlaying([radio.id]),
       itemsQuery()
         .where(and(eq(queueItems.radioId, radio.id), eq(queueItems.status, "queued")))
-        .orderBy(asc(queueItems.createdAt)),
+        // Same order the broadcaster plays them: people's picks, then Alfred's.
+        .orderBy(asc(queueItems.isFill), asc(queueItems.createdAt)),
       user ? quotaFor(radio, user) : null,
     ]);
+    const current = playing.get(radio.id) ?? null;
     return c.json({
       radio: publicRadio(radio),
-      nowPlaying: playing.get(radio.id) ?? null,
+      nowPlaying: current,
+      skip: await skipState(radio, current, user),
       queue,
       quota,
       serverTime: new Date().toISOString(),
@@ -240,8 +285,10 @@ export const radioRoutes = new Hono<AppEnv>()
             id: tracks.id,
             title: tracks.title,
             artist: tracks.artist,
+            durationSec: tracks.durationSec,
             thumbnailUrl: tracks.thumbnailUrl,
             sourceUrl: tracks.sourceUrl,
+            sourceKey: tracks.sourceKey,
           },
           plays,
           lastPlayedAt: sql`max(${queueItems.startedAt})`.mapWith(queueItems.startedAt),
@@ -290,7 +337,10 @@ export const radioRoutes = new Hono<AppEnv>()
 
   .post("/:slug/listen", zValidator("json", z.object({ listenerId: z.string().min(8).max(64) })), async (c) => {
     const radio = await getRadio(c.req.param("slug"));
-    heartbeat(radio.id, c.req.valid("json").listenerId);
+    heartbeat(radio.id, c.req.valid("json").listenerId, c.get("user")?.id ?? null);
+    // Listeners leaving lowers the bar; votes already cast may now be enough.
+    const current = await onAir(radio.id);
+    if (current) await applyVotes(radio, current.id);
     return c.json({ listeners: listenerCount(radio.id) });
   })
 
@@ -303,10 +353,10 @@ export const radioRoutes = new Hono<AppEnv>()
     const pre = await quotaFor(radio, user);
     if (!pre.unlimited && pre.remaining === 0) throw quotaError(pre);
 
-    const meta = await resolveTrack(c.req.valid("json").url);
+    const meta = await resolveTrack(c.req.valid("json"));
     if (meta.durationSec != null && meta.durationSec > radio.maxTrackSec) {
       throw new HTTPException(422, {
-        message: `Too long: this radio accepts tracks up to ${Math.round(radio.maxTrackSec / 60)} min`,
+        message: `That song is too long for this station (up to ${Math.round(radio.maxTrackSec / 60)} min)`,
       });
     }
 
@@ -332,7 +382,7 @@ export const radioRoutes = new Hono<AppEnv>()
         .returning();
 
       const dup = await tx
-        .select({ id: queueItems.id })
+        .select({ id: queueItems.id, isFill: queueItems.isFill, status: queueItems.status })
         .from(queueItems)
         .where(
           and(
@@ -342,7 +392,12 @@ export const radioRoutes = new Hono<AppEnv>()
           ),
         )
         .limit(1);
-      if (dup.length) throw new HTTPException(409, { message: "That track is already in the playlist" });
+      // Re-adding one of Alfred's queued picks makes it yours, so it moves up with people's songs.
+      if (dup[0]?.isFill && dup[0].status === "queued") {
+        await tx.update(queueItems).set({ status: "removed", endedAt: new Date() }).where(eq(queueItems.id, dup[0].id));
+      } else if (dup.length) {
+        throw new HTTPException(409, { message: "That song is already in line" });
+      }
 
       const [created] = await tx
         .insert(queueItems)
@@ -354,7 +409,14 @@ export const radioRoutes = new Hono<AppEnv>()
     const [{ ahead }] = await db
       .select({ ahead: sql<number>`count(*)::int` })
       .from(queueItems)
-      .where(and(eq(queueItems.radioId, radio.id), eq(queueItems.status, "queued"), lt(queueItems.createdAt, item.createdAt)));
+      .where(
+        and(
+          eq(queueItems.radioId, radio.id),
+          eq(queueItems.status, "queued"),
+          eq(queueItems.isFill, false),
+          lt(queueItems.createdAt, item.createdAt),
+        ),
+      );
     return c.json({ id: item.id, track: meta, position: ahead + 1, quota: await quotaFor(radio, user) }, 201);
   })
 
@@ -376,13 +438,35 @@ export const radioRoutes = new Hono<AppEnv>()
     return c.json({ ok: true });
   })
 
-  .post("/:slug/skip", requireAdmin, async (c) => {
+  // Admins can skip anything; whoever added the song can skip their own.
+  .post("/:slug/skip", requireUser, async (c) => {
+    const user = c.get("user")!;
     const radio = await getRadio(c.req.param("slug"));
-    // The broadcaster polls its on-air item and cuts the audio when it sees this.
-    const res = await db
-      .update(queueItems)
-      .set({ status: "skipped", endedAt: new Date() })
-      .where(and(eq(queueItems.radioId, radio.id), eq(queueItems.status, "playing")))
-      .returning({ id: queueItems.id });
-    return c.json({ skipped: res.length > 0 });
+    const current = await onAir(radio.id);
+    if (!current) return c.json({ skipped: false });
+    const reason = user.role === "admin" ? "admin" : current.userId === user.id ? "owner" : null;
+    if (!reason) throw new HTTPException(403, { message: "Only the person who added this song can skip it. Vote instead!" });
+    return c.json({ skipped: await skipItem(current.id, reason) });
+  })
+
+  .post("/:slug/votes", requireUser, zValidator("json", z.object({ itemId: z.string().uuid() })), async (c) => {
+    const user = c.get("user")!;
+    const radio = await getRadio(c.req.param("slug"));
+    if (radio.skipVotePercent <= 0) throw new HTTPException(409, { message: "Skip votes are off on this station" });
+    const current = await onAir(radio.id);
+    // Guard against voting on the next song because the page was a beat behind.
+    if (!current || current.id !== c.req.valid("json").itemId) {
+      throw new HTTPException(409, { message: "That song already ended" });
+    }
+    if (!isListening(radio.id, user.id)) throw new HTTPException(403, { message: "Tune in to vote" });
+    await db.insert(skipVotes).values({ queueItemId: current.id, userId: user.id }).onConflictDoNothing();
+    const skipped = await applyVotes(radio, current.id);
+    return c.json({ skipped });
+  })
+
+  .delete("/:slug/votes/:itemId", requireUser, async (c) => {
+    await db
+      .delete(skipVotes)
+      .where(and(eq(skipVotes.queueItemId, c.req.param("itemId")), eq(skipVotes.userId, c.get("user")!.id)));
+    return c.json({ ok: true });
   });

@@ -5,6 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { TrackArt } from "@/components/track-art";
 import { usePlayer } from "@/hooks/use-player";
 import { useRadio } from "@/hooks/use-radio";
+import { adderName, closedLabel } from "@/lib/format";
 
 export function PlayerBar() {
   const { station, status, volume, setVolume, tune, stop } = usePlayer();
@@ -17,9 +18,9 @@ export function PlayerBar() {
     status === "connecting"
       ? "Tuning in…"
       : status === "offline"
-        ? "Stream offline, retrying…"
+        ? (closedLabel(data?.radio.hours ?? { open: true, next: null }) ?? "Stream offline, retrying…")
         : np
-          ? (np.track.artist ?? `added by ${np.pushedBy.displayName}`)
+          ? (np.track.artist ?? `added by ${adderName(np)}`)
           : "Dead air. Add a song!";
 
   return (

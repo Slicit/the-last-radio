@@ -16,11 +16,14 @@ export type SearchResult = Omit<Track, "id"> & { videoId: string; views: number 
 export type QueueItem = {
   id: string;
   status: "queued" | "playing" | "played" | "skipped" | "removed" | "failed";
+  skipReason: "admin" | "owner" | "votes" | "interrupted" | null;
   createdAt: string;
   startedAt: string | null;
   endedAt: string | null;
   track: Track;
-  pushedBy: { id: string; displayName: string };
+  /** Alfred, the fill-in bot, picked it (pushedBy is then null). */
+  isFill: boolean;
+  pushedBy: { id: string; displayName: string } | null;
 };
 
 export type Radio = {
@@ -32,6 +35,20 @@ export type Radio = {
   rateLimitCount: number;
   rateLimitWindowSec: number;
   maxTrackSec: number;
+  skipVotePercent: number;
+  hoursEnabled: boolean;
+  hoursDays: number[];
+  hoursStart: string;
+  hoursEnd: string;
+  timezone: string;
+  autofillBelowSec: number;
+  hours: HoursStatus;
+};
+
+export type HoursStatus = {
+  open: boolean;
+  next: { inDays: number; weekday: number; time: string } | null;
+  closesAt: string | null;
 };
 
 export type RadioSummary = Radio & {
@@ -49,16 +66,26 @@ export type Quota = {
   nextSlotAt: string | null;
 };
 
+export type SkipState = {
+  enabled: boolean;
+  votes: number;
+  needed: number;
+  voted: boolean;
+  canVote: boolean;
+  isOwner: boolean;
+};
+
 export type RadioDetail = {
   radio: Radio;
   nowPlaying: QueueItem | null;
+  skip: SkipState | null;
   queue: QueueItem[];
   quota: Quota | null;
   serverTime: string;
 };
 
 export type RadioStats = {
-  topTracks: { track: Omit<Track, "durationSec" | "sourceKey">; plays: number; lastPlayedAt: string }[];
+  topTracks: { track: Track; plays: number; lastPlayedAt: string }[];
   topPlayers: { user: { id: string; displayName: string }; plays: number; listenedSec: number }[];
   totals: { plays: number; uniqueTracks: number; uniquePlayers: number; airtimeSec: number };
 };

@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ExternalLink, Headphones, Loader2, Pause, Play, SkipForward, Trash2 } from "lucide-react";
+import { Bot, Clock, ExternalLink, Headphones, Loader2, Moon, Pause, Play, Trash2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -11,12 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { TrackArt } from "@/components/track-art";
 import { SongSearch } from "@/components/song-search";
+import { SkipControls } from "@/components/skip-controls";
+import { AddAgain, type Lineup } from "@/components/add-again";
 import { OnAir } from "@/components/on-air";
 import { useMe } from "@/hooks/use-auth";
 import { usePlayer } from "@/hooks/use-player";
 import { useElapsed, useHistory, useNow, useRadio, useStats, useStream } from "@/hooks/use-radio";
-import { api, type QueueItem, type Quota, type User } from "@/lib/api";
-import { ago, duration, hours, windowLabel } from "@/lib/format";
+import { api, type QueueItem, type Quota, type SkipState, type User } from "@/lib/api";
+import { adderName, ago, closedLabel, duration, hours, hoursSummary, nextOpening, windowLabel } from "@/lib/format";
 
 export function RadioPage() {
   const { slug } = useParams();
@@ -38,22 +41,61 @@ export function RadioPage() {
     );
   }
 
-  const { radio } = data;
+  const { radio, quota } = data;
+  const blocked = !!quota && !quota.unlimited && quota.remaining === 0;
+  const lineup: Lineup = {
+    slug: radio.slug,
+    signedIn: !!user,
+    onAirKey: data.nowPlaying?.track.sourceKey ?? null,
+    queuedKeys: new Set(data.queue.map((q) => q.track.sourceKey)),
+    maxTrackSec: radio.maxTrackSec,
+    blockedReason: blocked
+      ? `You can add another song in ~${Math.max(1, Math.ceil((Date.parse(quota.nextSlotAt ?? "") - Date.now()) / 60_000) || 1)} min`
+      : null,
+  };
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight">{radio.name}</h1>
-            <OnAir live={!!stream?.live} />
+            <OnAir live={!!stream?.live} closed={!radio.hours.open} />
             {!radio.isActive && <Badge variant="outline">disabled</Badge>}
           </div>
           {radio.description && <p className="text-muted-foreground">{radio.description}</p>}
+          {radio.hoursEnabled && (
+            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Clock className="size-3.5" /> {hoursSummary(radio)}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Headphones className="size-4" /> {stream?.listeners ?? 0} listening
         </div>
       </div>
+
+      {!radio.hours.open && (
+        <Alert>
+          <Moon />
+          {data.nowPlaying ? (
+            <>
+              <AlertTitle>Last song of the day</AlertTitle>
+              <AlertDescription>
+                The station has closed; this song plays to the end.
+                {radio.hours.next && <> Back {nextOpening(radio.hours.next)}, with the queue kept.</>}
+              </AlertDescription>
+            </>
+          ) : (
+            <>
+              <AlertTitle>{closedLabel(radio.hours)}</AlertTitle>
+              <AlertDescription>
+                The queue is kept: songs added now will play when the station opens. Stay tuned in and the music
+                starts by itself.
+              </AlertDescription>
+            </>
+          )}
+        </Alert>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <NowPlaying
@@ -61,7 +103,10 @@ export function RadioPage() {
           name={radio.name}
           item={data.nowPlaying}
           clockSkewMs={data.clockSkewMs}
+          closed={!radio.hours.open}
           isAdmin={user?.role === "admin"}
+          signedIn={!!user}
+          skip={data.skip}
         />
         <AddSongCard
           slug={radio.slug}
@@ -70,6 +115,7 @@ export function RadioPage() {
           maxTrackSec={radio.maxTrackSec}
           queue={data.queue}
           nowPlaying={data.nowPlaying}
+          opensLabel={radio.hours.next && !radio.hours.open ? nextOpening(radio.hours.next) : null}
         />
       </div>
 
@@ -84,10 +130,10 @@ export function RadioPage() {
           <QueueList slug={radio.slug} items={data.queue} user={user} />
         </TabsContent>
         <TabsContent value="history">
-          <HistoryList slug={radio.slug} />
+          <HistoryList slug={radio.slug} lineup={lineup} />
         </TabsContent>
         <TabsContent value="tracks">
-          <TopTracks slug={radio.slug} />
+          <TopTracks slug={radio.slug} lineup={lineup} />
         </TabsContent>
         <TabsContent value="players">
           <TopPlayers slug={radio.slug} />
@@ -104,29 +150,26 @@ function NowPlaying({
   name,
   item,
   clockSkewMs,
+  closed,
   isAdmin,
+  signedIn,
+  skip,
 }: {
   slug: string;
   name: string;
   item: QueueItem | null;
   clockSkewMs: number;
+  closed: boolean;
   isAdmin: boolean;
+  signedIn: boolean;
+  skip: SkipState | null;
 }) {
   const player = usePlayer();
-  const qc = useQueryClient();
   const tunedHere = player.station?.slug === slug;
   const listening = tunedHere && (player.status === "playing" || player.status === "connecting");
   const elapsed = useElapsed(item?.startedAt, clockSkewMs, listening ? player.latency : 0);
   const total = item?.track.durationSec ?? null;
 
-  const skip = useMutation({
-    mutationFn: () => api.post<{ skipped: boolean }>(`/radios/${slug}/skip`),
-    onSuccess: () => {
-      toast.success("Skipped");
-      qc.invalidateQueries({ queryKey: ["radio", slug] });
-    },
-    onError: (e) => toast.error(e.message),
-  });
 
   return (
     <Card>
@@ -136,16 +179,16 @@ function NowPlaying({
           <div className="space-y-1">
             <div className="text-xs font-medium tracking-widest text-muted-foreground uppercase">Now playing</div>
             <div className="text-2xl leading-tight font-semibold break-words">
-              {item?.track.title ?? "Dead air"}
+              {item?.track.title ?? (closed ? "Closed for now" : "Dead air")}
             </div>
             <div className="text-muted-foreground">
               {item ? (
                 <>
                   {item.track.artist && <>{item.track.artist} · </>}
-                  added by <span className="text-foreground">{item.pushedBy.displayName}</span>
+                  added by <span className="text-foreground">{adderName(item)}</span>
                 </>
               ) : (
-                "The playlist is empty. Add a song!"
+                closed ? "Nothing playing until the station opens." : "The playlist is empty. Add a song!"
               )}
             </div>
           </div>
@@ -183,10 +226,15 @@ function NowPlaying({
                 <ExternalLink /> Source
               </a>
             )}
-            {isAdmin && item && (
-              <Button variant="outline" size="lg" disabled={skip.isPending} onClick={() => skip.mutate()}>
-                <SkipForward /> Skip
-              </Button>
+            {item && (
+              <SkipControls
+                slug={slug}
+                item={item}
+                skip={skip}
+                isAdmin={isAdmin}
+                signedIn={signedIn}
+                tunedIn={listening}
+              />
             )}
           </div>
           {tunedHere && player.status === "offline" && (
@@ -207,6 +255,7 @@ function AddSongCard({
   maxTrackSec,
   queue,
   nowPlaying,
+  opensLabel,
 }: {
   slug: string;
   user: User | null;
@@ -214,6 +263,8 @@ function AddSongCard({
   maxTrackSec: number;
   queue: QueueItem[];
   nowPlaying: QueueItem | null;
+  /** Set while the station is closed: when added songs will start playing. */
+  opensLabel: string | null;
 }) {
   const location = useLocation();
   const blocked = !!quota && !quota.unlimited && quota.remaining === 0;
@@ -233,6 +284,7 @@ function AddSongCard({
         <CardDescription>
           Search by artist or title, or paste a link. Up to {Math.round(maxTrackSec / 60)} min
           {quota && !quota.unlimited && <>, {quota.limit} songs every {windowLabel(quota.windowSec)}</>}.
+          {opensLabel && <> Songs you add now play when the station opens {opensLabel}.</>}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -260,6 +312,17 @@ function AddSongCard({
 
 // ------------------------------------------------------------------ lists
 
+function AlfredTag() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-muted-foreground"
+      title="Alfred picks songs this station played before when the queue runs low"
+    >
+      <Bot className="size-3" /> Alfred
+    </span>
+  );
+}
+
 function Row({ item, right }: { item: QueueItem; right?: ReactNode }) {
   return (
     <div className="flex items-center gap-3 py-2.5">
@@ -270,7 +333,7 @@ function Row({ item, right }: { item: QueueItem; right?: ReactNode }) {
         </a>
         <div className="truncate text-xs text-muted-foreground">
           {item.track.artist && <>{item.track.artist} · </>}
-          {item.pushedBy.displayName}
+          {item.isFill ? <AlfredTag /> : adderName(item)}
         </div>
       </div>
       <div className="shrink-0 text-xs text-muted-foreground tabular-nums">{duration(item.track.durationSec)}</div>
@@ -300,27 +363,35 @@ function QueueList({ slug, items, user }: { slug: string; items: QueueItem[]; us
         ) : (
           <>
             {items.map((item, i) => (
-              <div key={item.id} className="flex items-center gap-3">
-                <span className="w-5 text-right text-xs text-muted-foreground tabular-nums">{i + 1}</span>
-                <div className="min-w-0 flex-1">
-                  <Row
-                    item={item}
-                    right={
-                      user && (user.role === "admin" || user.id === item.pushedBy.id) ? (
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Remove from playlist"
-                          disabled={remove.isPending}
-                          onClick={() => remove.mutate(item.id)}
-                        >
-                          <Trash2 />
-                        </Button>
-                      ) : null
-                    }
-                  />
+              <Fragment key={item.id}>
+                {item.isFill && !items[i - 1]?.isFill && (
+                  <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                    <Bot className="size-3.5" />
+                    Alfred's picks keep the music going. Songs people add always play first.
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
+                  <span className="w-5 text-right text-xs text-muted-foreground tabular-nums">{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <Row
+                      item={item}
+                      right={
+                        user && (user.role === "admin" || user.id === item.pushedBy?.id) ? (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="Remove from playlist"
+                            disabled={remove.isPending}
+                            onClick={() => remove.mutate(item.id)}
+                          >
+                            <Trash2 />
+                          </Button>
+                        ) : null
+                      }
+                    />
+                  </div>
                 </div>
-              </div>
+              </Fragment>
             ))}
             <div className="pt-3 text-right text-xs text-muted-foreground">
               {items.length} tracks · {duration(total)}
@@ -332,7 +403,22 @@ function QueueList({ slug, items, user }: { slug: string; items: QueueItem[]; us
   );
 }
 
-function HistoryList({ slug }: { slug: string }) {
+function skippedLabel(reason: QueueItem["skipReason"]): string {
+  switch (reason) {
+    case "votes":
+      return "voted off";
+    case "owner":
+      return "skipped by its adder";
+    case "admin":
+      return "skipped by an admin";
+    case "interrupted":
+      return "cut off";
+    default:
+      return "skipped";
+  }
+}
+
+function HistoryList({ slug, lineup }: { slug: string; lineup: Lineup }) {
   const { data, isLoading } = useHistory(slug);
   return (
     <Card>
@@ -347,9 +433,15 @@ function HistoryList({ slug }: { slug: string }) {
               key={item.id}
               item={item}
               right={
-                <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
-                  {item.status === "skipped" ? "skipped" : item.startedAt ? ago(item.startedAt) : ""}
-                </span>
+                <>
+                  <span className="w-32 shrink-0 text-right text-xs text-muted-foreground">
+                    {item.startedAt ? ago(item.startedAt) : ""}
+                    {item.status === "skipped" && (
+                      <span className="block text-muted-foreground/70">{skippedLabel(item.skipReason)}</span>
+                    )}
+                  </span>
+                  <AddAgain lineup={lineup} track={item.track} />
+                </>
               }
             />
           ))
@@ -359,7 +451,7 @@ function HistoryList({ slug }: { slug: string }) {
   );
 }
 
-function TopTracks({ slug }: { slug: string }) {
+function TopTracks({ slug, lineup }: { slug: string; lineup: Lineup }) {
   const { data, isLoading } = useStats(slug);
   if (isLoading) return <Skeleton className="h-48 rounded-xl" />;
   const max = data?.topTracks[0]?.plays ?? 1;
@@ -386,6 +478,7 @@ function TopTracks({ slug }: { slug: string }) {
                 <span className="w-16 shrink-0 text-right text-sm tabular-nums">
                   {t.plays} <span className="text-xs text-muted-foreground">plays</span>
                 </span>
+                <AddAgain lineup={lineup} track={t.track} />
               </div>
             ))
           )}

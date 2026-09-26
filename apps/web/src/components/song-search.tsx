@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useAddSong } from "@/hooks/use-add-song";
 import { Link2, Loader2, Plus, Search, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrackArt } from "@/components/track-art";
@@ -24,12 +24,6 @@ function useDebounced<T>(value: T, ms: number): T {
   }, [value, ms]);
   return v;
 }
-
-const ordinal = (n: number) => {
-  const rules = new Intl.PluralRules("en", { type: "ordinal" });
-  const suffix = { one: "st", two: "nd", few: "rd", other: "th" } as Record<string, string>;
-  return `${n}${suffix[rules.select(n)] ?? "th"}`;
-};
 
 /**
  * Search-as-you-type song picker. Typing searches YouTube; pasting a link
@@ -57,7 +51,6 @@ export function SongSearch({
   const [active, setActive] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
-  const qc = useQueryClient();
 
   const trimmed = query.trim();
   const link = isLink(trimmed);
@@ -73,19 +66,10 @@ export function SongSearch({
     retry: false,
   });
 
-  const add = useMutation({
-    mutationFn: (opt: Option) =>
-      api.post<{ track: { title: string }; position: number }>(`/radios/${slug}/queue`, { url: opt.url }),
-    onSuccess: (d) => {
-      toast.success(`“${d.track.title}” added`, {
-        description: d.position === 1 ? "It's next up." : `It's ${ordinal(d.position)} in line.`,
-      });
-      setQuery("");
-      setOpen(false);
-      setActive(-1);
-      qc.invalidateQueries({ queryKey: ["radio", slug] });
-    },
-    onError: (e) => toast.error(e.message),
+  const add = useAddSong(slug, () => {
+    setQuery("");
+    setOpen(false);
+    setActive(-1);
   });
 
   const options: Option[] = useMemo(() => {
@@ -119,7 +103,7 @@ export function SongSearch({
 
   const pick = (opt: Option | undefined) => {
     if (!opt || opt.blocked || add.isPending) return;
-    add.mutate(opt);
+    add.mutate({ key: opt.key, target: { url: opt.url } });
   };
 
   const move = (dir: 1 | -1) => {

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -16,7 +16,7 @@ import { OnAir } from "@/components/on-air";
 import { useMe } from "@/hooks/use-auth";
 import { useRadios, useStream } from "@/hooks/use-radio";
 import { api, type AdminUser, type Radio, type Role } from "@/lib/api";
-import { ago, windowLabel } from "@/lib/format";
+import { ago, hoursSummary, windowLabel } from "@/lib/format";
 
 export function AdminPage() {
   const { user, isLoading } = useMe();
@@ -41,7 +41,33 @@ type RadioForm = {
   rateLimitCount: number;
   rateLimitWindowMin: number;
   maxTrackMin: number;
+  skipVotePercent: number;
+  hoursEnabled: boolean;
+  hoursDays: number[];
+  hoursStart: string;
+  hoursEnd: string;
+  timezone: string;
+  autofillMin: number;
 };
+
+const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const timezones: string[] = (() => {
+  try {
+    return Intl.supportedValuesOf("timeZone");
+  } catch {
+    return [browserTz];
+  }
+})();
+// Monday first, as people read a week.
+const WEEK = [
+  [1, "Mon"],
+  [2, "Tue"],
+  [3, "Wed"],
+  [4, "Thu"],
+  [5, "Fri"],
+  [6, "Sat"],
+  [0, "Sun"],
+] as const;
 
 const blankForm: RadioForm = {
   slug: "",
@@ -51,6 +77,13 @@ const blankForm: RadioForm = {
   rateLimitCount: 3,
   rateLimitWindowMin: 10,
   maxTrackMin: 10,
+  skipVotePercent: 50,
+  hoursEnabled: false,
+  hoursDays: [1, 2, 3, 4, 5],
+  hoursStart: "08:00",
+  hoursEnd: "18:00",
+  timezone: browserTz,
+  autofillMin: 15,
 };
 
 function toForm(r: Radio): RadioForm {
@@ -62,6 +95,13 @@ function toForm(r: Radio): RadioForm {
     rateLimitCount: r.rateLimitCount,
     rateLimitWindowMin: Math.round(r.rateLimitWindowSec / 60),
     maxTrackMin: Math.round(r.maxTrackSec / 60),
+    skipVotePercent: r.skipVotePercent,
+    hoursEnabled: r.hoursEnabled,
+    hoursDays: r.hoursDays,
+    hoursStart: r.hoursStart,
+    hoursEnd: r.hoursEnd,
+    timezone: r.timezone,
+    autofillMin: Math.round(r.autofillBelowSec / 60),
   };
 }
 
@@ -104,6 +144,8 @@ function RadiosAdmin() {
                 <TableHead>Stream</TableHead>
                 <TableHead>Song limit</TableHead>
                 <TableHead>Max track</TableHead>
+                <TableHead>Skip vote</TableHead>
+                <TableHead>Hours</TableHead>
                 <TableHead>Queue</TableHead>
                 <TableHead />
               </TableRow>
@@ -124,6 +166,10 @@ function RadiosAdmin() {
                     {r.rateLimitCount} / {windowLabel(r.rateLimitWindowSec)}
                   </TableCell>
                   <TableCell>{windowLabel(r.maxTrackSec)}</TableCell>
+                  <TableCell>{r.skipVotePercent > 0 ? `${r.skipVotePercent}%` : "off"}</TableCell>
+                  <TableCell className="max-w-44 text-xs whitespace-normal text-muted-foreground">
+                    {r.hoursEnabled ? hoursSummary(r) : "Always"}
+                  </TableCell>
                   <TableCell>{r.queueLength}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => setEditing(r)}>
@@ -134,7 +180,7 @@ function RadiosAdmin() {
               ))}
               {radios?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                     No stations yet.
                   </TableCell>
                 </TableRow>
@@ -163,6 +209,13 @@ function RadioDialog({ target, onClose }: { target: Radio | "new" | null; onClos
         rateLimitCount: form.rateLimitCount,
         rateLimitWindowSec: form.rateLimitWindowMin * 60,
         maxTrackSec: form.maxTrackMin * 60,
+        skipVotePercent: form.skipVotePercent,
+        hoursEnabled: form.hoursEnabled,
+        hoursDays: form.hoursDays,
+        hoursStart: form.hoursStart,
+        hoursEnd: form.hoursEnd,
+        timezone: form.timezone,
+        autofillBelowSec: form.autofillMin * 60,
       };
       return isNew
         ? api.post("/radios", { ...body, slug: form.slug })
@@ -184,7 +237,7 @@ function RadioDialog({ target, onClose }: { target: Radio | "new" | null; onClos
 
   return (
     <Dialog open={target !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
         <form onSubmit={submit} className="space-y-4">
           <DialogHeader>
             <DialogTitle>{isNew ? "New station" : `Edit ${form.name}`}</DialogTitle>
@@ -258,6 +311,96 @@ function RadioDialog({ target, onClose }: { target: Radio | "new" | null; onClos
               />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="r-skip">Vote to skip (% of listeners)</Label>
+            <Input
+              id="r-skip"
+              type="number"
+              min={0}
+              max={100}
+              required
+              value={form.skipVotePercent}
+              onChange={(e) => set("skipVotePercent", Number(e.target.value))}
+            />
+            <p className="text-xs text-muted-foreground">
+              {form.skipVotePercent > 0
+                ? `A song is skipped when ${form.skipVotePercent}% of the people listening vote against it. Set 0 to turn votes off.`
+                : "Votes are off. Only admins and the person who added a song can skip it."}
+            </p>
+          </div>
+          <Section title="Broadcast hours">
+            <label className="flex items-center gap-3 text-sm">
+              <Switch checked={form.hoursEnabled} onCheckedChange={(v) => set("hoursEnabled", v)} />
+              {form.hoursEnabled ? "Only on air during these hours" : "On air around the clock"}
+            </label>
+            {form.hoursEnabled && (
+              <>
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Days">
+                  {WEEK.map(([d, label]) => {
+                    const on = form.hoursDays.includes(d);
+                    return (
+                      <Button
+                        key={d}
+                        type="button"
+                        size="sm"
+                        variant={on ? "default" : "outline"}
+                        aria-pressed={on}
+                        className="w-12"
+                        onClick={() =>
+                          set("hoursDays", on ? form.hoursDays.filter((x) => x !== d) : [...form.hoursDays, d])
+                        }
+                      >
+                        {label}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="r-start">Opens at</Label>
+                    <Input id="r-start" type="time" required value={form.hoursStart} onChange={(e) => set("hoursStart", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="r-end">Closes at</Label>
+                    <Input id="r-end" type="time" required value={form.hoursEnd} onChange={(e) => set("hoursEnd", e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="r-tz">Timezone</Label>
+                  <Input id="r-tz" list="r-tz-list" required value={form.timezone} onChange={(e) => set("timezone", e.target.value)} />
+                  <datalist id="r-tz-list">
+                    {timezones.map((tz) => (
+                      <option key={tz} value={tz} />
+                    ))}
+                  </datalist>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {form.hoursEnd <= form.hoursStart && form.hoursEnd !== form.hoursStart
+                    ? `Runs past midnight: each night ends at ${form.hoursEnd} the next morning. `
+                    : ""}
+                  A song still playing at closing time finishes. The queue waits for the next opening.
+                </p>
+              </>
+            )}
+          </Section>
+          <Section title="Alfred, the fill-in DJ">
+            <div className="space-y-2">
+              <Label htmlFor="r-alfred">Top up the queue when less than (min) is left</Label>
+              <Input
+                id="r-alfred"
+                type="number"
+                min={0}
+                required
+                value={form.autofillMin}
+                onChange={(e) => set("autofillMin", Number(e.target.value))}
+              />
+              <p className="text-xs text-muted-foreground">
+                {form.autofillMin > 0
+                  ? "Alfred replays songs this station liked before (never ones that were skipped). Songs people add always play first. Set 0 to turn him off."
+                  : "Alfred is off: when the queue runs out, the station goes quiet."}
+              </p>
+            </div>
+          </Section>
           <label className="flex items-center gap-3 text-sm">
             <Switch checked={form.isActive} onCheckedChange={(v) => set("isActive", v)} />
             On the air
@@ -273,6 +416,15 @@ function RadioDialog({ target, onClose }: { target: Radio | "new" | null; onClos
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <fieldset className="space-y-3 border-t pt-4">
+      <legend className="pr-2 text-sm font-medium">{title}</legend>
+      {children}
+    </fieldset>
   );
 }
 
