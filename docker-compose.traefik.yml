@@ -1,0 +1,17 @@
+# Serve the radio through the shared Traefik proxy (deploy/traefik) instead of
+# a host port. Set DOMAIN (and PUBLIC_URL=https://$DOMAIN, COOKIE_SECURE=true) in .env:
+#
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.traefik.yml
+services:
+  web:
+    ports: !reset []
+    networks: [net, traefik]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${STACK:-lastradio}.rule=Host(`${DOMAIN:?set DOMAIN in .env}`)
+      - traefik.http.routers.${STACK:-lastradio}.entrypoints=websecure
+      - traefik.http.services.${STACK:-lastradio}.loadbalancer.server.port=80
+
+networks:
+  traefik:
+    external: true

@@ -101,6 +101,26 @@ Open <http://localhost:28700>, **sign up: the first account becomes the admin**,
 
 > **Claude on the web** reaches MCP servers from the cloud, so it needs the radio on a **public HTTPS** address (a reverse proxy or a tunnel). Claude Code and local clients work on your network as is.
 
+### On a server, with HTTPS
+
+[`deploy/traefik`](deploy/traefik/docker-compose.yml) is a shared [Traefik](https://traefik.io) proxy for the whole host: it owns ports 80/443, fetches Let's Encrypt certificates, and routes each domain to whichever Docker project claims it with labels, so the radio can sit next to your other sites.
+
+```bash
+docker network create traefik
+(cd deploy/traefik && docker compose up -d)   # once per host; copy it anywhere, e.g. /opt/traefik
+```
+
+Then in the radio's `.env`:
+
+```bash
+COMPOSE_FILE=docker-compose.yml:docker-compose.traefik.yml
+DOMAIN=radio.example.com
+PUBLIC_URL=https://radio.example.com
+COOKIE_SECURE=true
+```
+
+and `docker compose up -d --build`. Point the domain's DNS at the server first so the certificate can be issued.
+
 ### Updating without losing anything
 
 ```bash

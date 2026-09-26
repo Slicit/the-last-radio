@@ -61,4 +61,5 @@ if [ "$ALL" = 1 ]; then
 fi
 
 docker compose ps --format "{{.Name}}\t{{.Status}}"
-curl -fs -o /dev/null -w "▸ health %{http_code}\n" "http://localhost:${WEB_PORT:-28700}/api/health"
+# Through the web container, so it works with a host port or behind a proxy.
+if docker compose exec -T web wget -q -O /dev/null http://localhost/api/health; then echo "▸ health ok"; else echo "▸ health FAILED" >&2; exit 1; fi

@@ -1,0 +1,82 @@
+# A shared reverse proxy for every Docker project on the host.
+#
+# Traefik owns ports 80 and 443, gets Let's Encrypt certificates on its own and
+# routes by domain name to any container that opts in with labels. To publish a
+# project, put its web container on the external `traefik` network and add:
+#
+#   labels:
+#     - traefik.enable=true
+#     - traefik.http.routers.<name>.rule=Host(`app.example.com`)
+#     - traefik.http.services.<name>.loadbalancer.server.port=<container port>
+#
+# HTTPS, the certificate and the http → https redirect come for free.
+#
+# Install (once):  docker network create traefik && docker compose up -d
+name: traefik
+
+services:
+  # Traefik reads the Docker API through a read-only filter, never the raw socket.
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:v0.4.1
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1
+      NETWORKS: 1
+      EVENTS: 1
+      PING: 1
+      VERSION: 1
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [socket]
+    logging: &logging
+      driver: json-file
+      options: { max-size: 10m, max-file: "3" }
+
+  traefik:
+    image: traefik:v3.6
+    restart: unless-stopped
+    depends_on: [socket-proxy]
+    command:
+      - --providers.docker.endpoint=tcp://socket-proxy:2375
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=traefik
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls.certresolver=letsencrypt
+      - --entrypoints.websecure.http3=true
+      # Long responses (uploads, slow API calls) are fine; idle clients are cut.
+      - --entrypoints.websecure.transport.respondingTimeouts.readTimeout=5m
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json
+      - --ping=true
+      - --log.level=INFO
+      - --accesslog=true
+      - --accesslog.format=json
+      - --accesslog.fields.headers.defaultmode=drop
+      - --global.sendAnonymousUsage=false
+      - --global.checkNewVersion=false
+    ports:
+      - "80:80"
+      - "443:443/tcp"
+      - "443:443/udp"
+    volumes:
+      - acme:/acme
+    networks: [traefik, socket]
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *logging
+
+volumes:
+  acme:
+
+networks:
+  traefik:
+    external: true
+  socket:
+    internal: true
