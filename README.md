@@ -41,7 +41,8 @@ private, open only in the evening), and let your AI assistant add songs for you.
 - **As many stations as you want**, each with its own rules: song limits, maximum length, vote threshold, Alfred's threshold.
 - **Broadcast hours** in the station's timezone (e.g. weekdays 8:00–18:00, or Friday nights 22:00–02:00). The song on air at closing finishes; the queue waits for the next opening.
 - **Move a station** between radios (say, from a test server to the real one): *Export* saves its settings, access rules, queue, full history and votes to one file; *Import* recreates it elsewhere, matching people to their accounts by email.
-- **Private stations** for a team or a family: add people by email, or let in everyone with a **confirmed** address at a domain (`@example.com`). Private audio is protected too, not just the page.
+- **Private stations** for a team or a family: add people by email, or let in everyone with a **confirmed** address at a domain (`@example.com`). The editor shows who each domain lets in, and who still has to confirm. Private audio is protected too, not just the page.
+- **Listener stats**: how many people listen, counted every 5 minutes, for all stations and each one, over the last 24 hours, 7 days, 30 days or 3 months (average and peak). Counts only, never who.
 
 ### Your AI, your scripts
 - **MCP server** at `/mcp`: ask Claude (or any MCP client) *"what's playing on Main Stage?"* or *"add some Daft Punk"*. Tools: `list_stations`, `now_playing`, `get_queue`, `song_stats`, `search_songs`, `add_song`, `upvote`, `downvote`, `undo_downvote`, `skip_my_song`.
@@ -52,6 +53,7 @@ private, open only in the evening), and let your AI assistant add songs for you.
 - **Three themes**: *Night* (dark), *Light* and *Vintage* (an old wooden radio: sepia paper, walnut, an amber dial glow).
 - **Profile photo** and display name. Uploads are re-encoded and stripped of metadata.
 - **Feedback** straight to the admins (3 a day), who triage it: vote a priority, mark read, archive.
+- **Email** confirmations, from any SMTP service or from a small mail server on your own host (SPF, DKIM, DMARC ready; see [`deploy/mail`](deploy/mail/README.md)). No address gets more than 3 emails in 30 minutes.
 
 ### Privacy and security, built in
 - **No trackers, no ads, one sign-in cookie**, so no cookie banner; people acknowledge a clear privacy notice (French and English, written for GDPR and French law) when they sign up or when it changes.
@@ -67,7 +69,8 @@ private, open only in the evening), and let your AI assistant add songs for you.
 |---|---|
 | ![Stations](docs/screenshots/home.png) **Stations**: what's on everywhere, private ones marked with a lock. | ![Search](docs/screenshots/search.png) **Search**: find a song by name and add it in one click. |
 | ![Songs](docs/screenshots/songs-light.png) **Song records** in the *Light* theme: crowd favourites and why Alfred leaves a song alone. | ![Vintage](docs/screenshots/station-vintage.png) **The *Vintage* theme**. |
-| ![Admin](docs/screenshots/admin.png) **Admin**: the feedback inbox and every station's rules. | ![Station editor](docs/screenshots/station-editor.png) **The station editor**: who can listen, hours, Alfred. |
+| ![Admin](docs/screenshots/admin.png) **Admin**: the feedback inbox and every station's rules. | ![Station editor](docs/screenshots/station-editor.png) **The station editor**: who can listen (and who a domain lets in), hours, Alfred. |
+| ![Listeners](docs/screenshots/listeners.png) **Listener stats**: every station's audience, average and peak, up to 3 months back. | ![Import](docs/screenshots/import.png) **Moving a station**: import a file exported on another radio, history and all. |
 | ![Connect your AI](docs/screenshots/connect.png) **Connect your AI**: the MCP address, API keys, connected apps. | ![Phone](docs/screenshots/mobile.png) **On a phone**. |
 
 <sub>Screenshots use invented artists, titles and artwork (see `e2e/docs/demo-data.ts`); regenerate them with `scripts/screenshots.sh`.</sub>
@@ -123,6 +126,21 @@ COOKIE_SECURE=true
 ```
 
 and `docker compose up -d --build`. Point the domain's DNS at the server first so the certificate can be issued.
+
+### Email from your own server
+
+[`deploy/mail`](deploy/mail/README.md) is a small Postfix for the host: it signs mail with DKIM, only sends for your domains, and only receives the few addresses you forward (bounces, postmaster, abuse). Its README lists the DNS records (SPF, DKIM, DMARC, MX, reverse DNS). Then in the radio's `.env`:
+
+```bash
+COMPOSE_FILE=docker-compose.yml:docker-compose.traefik.yml:docker-compose.mail.yml
+SMTP_URL=smtp://postfix:587
+MAIL_FROM=The Last Radio <radio@example.com>
+MAIL_RETURN_PATH=bounces@example.com
+```
+
+### When YouTube blocks your server
+
+Datacenter addresses often get "Sign in to confirm you're not a bot". Run [`deploy/youtube-relay`](deploy/youtube-relay/README.md) on a machine with an ordinary connection: it dials a WireGuard tunnel to the server and offers a proxy for YouTube only. Set `YOUTUBE_PROXY=http://10.66.0.2:8888`; other sites stay direct. Downloads that fail for a passing reason are retried later instead of dropping out of the queue.
 
 ### Updating without losing anything
 

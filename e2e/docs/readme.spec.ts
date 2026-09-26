@@ -54,7 +54,8 @@ test("README screenshots", async ({ browser, baseURL }) => {
 
   const sql = postgres(process.env.DATABASE_URL!, { max: 1, onnotice: () => {} });
   const users = Object.fromEntries((await sql`select id, display_name from users`).map((u) => [u.display_name, u.id]));
-  await sql`update users set email_verified_at = now()`;
+  // Everyone confirmed their email but Noor, so the station editor shows both.
+  await sql`update users set email_verified_at = now() where email <> ${PEOPLE[4].email}`;
   const radios = Object.fromEntries((await sql`select id, slug from radios`).map((r) => [r.slug, r.id]));
   const tracks: string[] = [];
   for (const [i, s] of SONGS.entries()) {
@@ -86,6 +87,25 @@ test("README screenshots", async ({ browser, baseURL }) => {
   for (const [i, f] of FEEDBACK.entries()) {
     await sql`insert into feedback (user_id, kind, body, created_at, read_at) values (${who(i + 1)}, ${f.kind}, ${f.body}, now() - make_interval(mins => ${i * 50 + 12}), ${i === 2 ? sql`now()` : null})`;
   }
+  // A month of listener counts, every 5 minutes: invented daily rhythms per
+  // station (midday and evening for Main Stage, office hours for Team Room
+  // and Focus, late evenings for Night Shift), growing a little over time.
+  await sql`
+    insert into listener_samples (radio_id, at, listeners)
+    select r.id, g.at, greatest(0, round(
+      (0.75 + 0.25 * extract(epoch from g.at - (now() - interval '30 days')) / (30 * 86400)) *
+      case r.slug
+        when 'main' then (3 + 11 * exp(-power((p.h - 13) / 3.5, 2)) + 8 * exp(-power((p.h - 20.5) / 2.2, 2))) * (case when p.dow >= 6 then 0.75 else 1 end) + random() * 3 - 1.5
+        when 'night-shift' then case when p.h >= 20 or p.h < 2 then 2 + 7 * exp(-power((case when p.h < 2 then p.h + 24 else p.h end - 23) / 1.6, 2)) + random() * 2 else 0 end
+        when 'team-room' then case when p.dow <= 5 and p.h >= 9 and p.h < 18 then 4 + 4 * exp(-power((p.h - 11) / 2, 2)) + 3 * exp(-power((p.h - 15.5) / 1.5, 2)) + random() * 2 else 0 end
+        else case when p.h >= 8.5 and p.h < 19 then (case when p.dow >= 6 then 1 else 3 end) + 2 * sin((p.h - 8.5) / 10.5 * pi()) + random() * 1.5 else random() * 0.8 end
+      end))::int
+    from radios r
+    cross join generate_series(date_trunc('hour', now()) - interval '30 days', now() - interval '5 minutes', interval '5 minutes') as g(at)
+    cross join lateral (select
+      extract(hour from g.at at time zone 'Europe/Paris') + extract(minute from g.at at time zone 'Europe/Paris') / 60.0 as h,
+      extract(isodow from g.at at time zone 'Europe/Paris') as dow) p
+    on conflict do nothing`;
   await sql.end();
 
   // ---------------------------------------------------------------- shots
@@ -136,6 +156,29 @@ test("README screenshots", async ({ browser, baseURL }) => {
   await ap.goto("/admin");
   await expect(ap.getByText("unread")).toBeVisible();
   await shot(ap, "admin");
+  // Listeners over time: all stations and each, hovering the busiest evening.
+  const listeners = ap.locator("[data-slot=card]", { has: ap.getByText("People listening, counted every 5 minutes") });
+  await expect(listeners.getByRole("region", { name: "All stations" })).toBeVisible();
+  await listeners.scrollIntoViewIfNeeded();
+  const chart = listeners.getByRole("region", { name: "All stations" }).locator("svg");
+  const cbox = (await chart.boundingBox())!;
+  await ap.mouse.move(cbox.x + cbox.width * 0.79, cbox.y + cbox.height / 2);
+  await ap.waitForTimeout(400);
+  await listeners.screenshot({ path: `${OUT}/listeners.png` });
+
+  // Moving a station: the import dialog, with a file exported from Main Stage.
+  const exported = await R.get("/api/radios/main/export");
+  await ap.mouse.move(0, 0);
+  await ap.evaluate(() => window.scrollTo(0, 0));
+  await ap.getByRole("button", { name: "Import" }).click();
+  const dialog = ap.getByRole("dialog", { name: "Import a station" });
+  await dialog.getByLabel("Station file").setInputFiles({ name: "main-2026-09-26.lastradio.json", mimeType: "application/json", buffer: await exported.body() });
+  await expect(dialog.getByLabel("Address")).toHaveValue("main-2");
+  await dialog.getByLabel("Name").fill("Main Stage (from the test radio)");
+  await dialog.getByLabel("Address").fill("main-stage");
+  await shot(ap, "import");
+  await ap.keyboard.press("Escape");
+
   await ap.goto("/admin/stations/team-room");
   await expect(ap.getByText("@demo.radio")).toBeVisible();
   await ap.evaluate(() => window.scrollTo(0, document.getElementById("access")!.offsetTop - 90));

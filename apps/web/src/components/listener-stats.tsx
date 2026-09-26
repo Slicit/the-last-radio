@@ -37,7 +37,7 @@ function ListenerChart({ series, from, to, range, height = 160, label }: { serie
   const [hover, setHover] = useState<Point | null>(null);
   const W = 600;
   const H = height;
-  const pad = { top: 8, bottom: 18, left: 28, right: 6 };
+  const pad = { top: 8, bottom: 16, left: 30, right: 4 };
   const t0 = Date.parse(from);
   const t1 = Date.parse(to);
   const top = Math.max(1, series.peak);
@@ -93,19 +93,27 @@ function ListenerChart({ series, from, to, range, height = 160, label }: { serie
           </linearGradient>
         </defs>
         {[0, 0.5, 1].map((f) => (
-          <g key={f}>
-            <line x1={pad.left} x2={W - pad.right} y1={y(top * f)} y2={y(top * f)} stroke="var(--border)" strokeDasharray={f ? "3 3" : undefined} vectorEffect="non-scaling-stroke" />
-            <text x={pad.left - 4} y={y(top * f) + 3} textAnchor="end" fontSize="10" fill="var(--muted-foreground)">
-              {Math.round(top * f)}
-            </text>
-          </g>
+          <line key={f} x1={pad.left} x2={W - pad.right} y1={y(top * f)} y2={y(top * f)} stroke="var(--border)" strokeDasharray={f ? "3 3" : undefined} vectorEffect="non-scaling-stroke" />
         ))}
         <path d={area} fill={`url(#${gradient})`} />
         <path d={peakLine} fill="none" stroke="var(--brand)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
         {hover && <line x1={x(hover.t)} x2={x(hover.t)} y1={pad.top} y2={H - pad.bottom} stroke="var(--foreground)" strokeOpacity="0.4" vectorEffect="non-scaling-stroke" />}
-        <text x={pad.left} y={H - 4} fontSize="10" fill="var(--muted-foreground)">{when(from, range)}</text>
-        <text x={W - pad.right} y={H - 4} fontSize="10" textAnchor="end" fill="var(--muted-foreground)">now</text>
       </svg>
+      {/* Labels in HTML: the SVG stretches to the card's width, text in it would too. */}
+      {[0, 0.5, 1].map((f) => (
+        <span
+          key={f}
+          aria-hidden
+          className="pointer-events-none absolute left-0 w-6 -translate-y-1/2 text-right text-[10px] text-muted-foreground tabular-nums"
+          style={{ top: `${(y(top * f) / H) * 100}%` }}
+        >
+          {Math.round(top * f)}
+        </span>
+      ))}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between pl-7 text-[10px] text-muted-foreground">
+        <span>{when(from, range)}</span>
+        <span>now</span>
+      </div>
       {hover && (
         <div className="pointer-events-none absolute top-1 right-2 rounded-md border bg-popover px-2 py-1 text-xs text-popover-foreground shadow-sm">
           {when(hover.t, range)} · avg <strong>{hover.avg}</strong> · peak <strong>{hover.peak}</strong>
