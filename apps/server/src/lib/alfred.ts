@@ -1,13 +1,14 @@
-import { and, desc, eq, gt, inArray, isNotNull, lte, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import type { Radio } from "../db/schema.js";
+import { songRecords } from "./track-stats.js";
 
 const { queueItems, tracks } = schema;
 
 // Don't bring back a song that aired this recently.
 const RECENT_MS = 3 * 3600_000;
 const MAX_PICKS_PER_RUN = 5;
-const CANDIDATES = 50;
+const CANDIDATES = 200;
 
 /** Seconds of music lined up: what's left of the song on air plus everything queued. */
 export async function lineupSeconds(radioId: string): Promise<number> {
@@ -24,18 +25,20 @@ export async function lineupSeconds(radioId: string): Promise<number> {
 
 /**
  * Alfred keeps the station from going quiet: when less than
- * `autofillBelowSec` is lined up, he queues songs this station has played
- * before. He favours songs that played to the end often, never picks one
- * that was skipped or voted off last time, and avoids recent repeats. His
- * picks carry `isFill` so anything a person adds plays first.
+ * `autofillBelowSec` is lined up, he queues songs from this station's record
+ * (see track-stats), drawing at random weighted by each song's score, so
+ * crowd favourites come back often and downvoted songs rarely or never. He
+ * never picks a song whose last airing was voted off, one that aired in the
+ * last few hours, or one already lined up. His picks carry `isFill` so
+ * anything a person adds plays first.
  */
 export async function alfredTopUp(radio: Radio): Promise<string[]> {
   if (radio.autofillBelowSec <= 0) return [];
   let lined = await lineupSeconds(radio.id);
   if (lined >= radio.autofillBelowSec) return [];
 
-  const busy = db
-    .select({ id: queueItems.trackId })
+  const busyRows = await db
+    .selectDistinct({ id: queueItems.trackId })
     .from(queueItems)
     .where(
       and(
@@ -43,39 +46,26 @@ export async function alfredTopUp(radio: Radio): Promise<string[]> {
         sql`(${queueItems.status} in ('queued', 'playing') or ${queueItems.startedAt} > ${new Date(Date.now() - RECENT_MS).toISOString()}::timestamptz)`,
       ),
     );
+  const busy = new Set(busyRows.map((r) => r.id));
 
-  // Each track's play count here, and how its latest airing ended.
-  const lastOutcome = sql<string>`(array_agg(${queueItems.status} order by ${queueItems.startedAt} desc))[1]`;
-  const plays = sql<number>`count(*) filter (where ${queueItems.status} = 'played')::int`;
-  const candidates = await db
-    .select({ trackId: tracks.id, title: tracks.title, durationSec: tracks.durationSec, plays, lastOutcome })
-    .from(queueItems)
-    .innerJoin(tracks, eq(tracks.id, queueItems.trackId))
-    .where(
-      and(
-        eq(queueItems.radioId, radio.id),
-        isNotNull(queueItems.startedAt),
-        isNotNull(tracks.durationSec),
-        lte(tracks.durationSec, radio.maxTrackSec),
-        gt(tracks.durationSec, 0),
-        notInArray(tracks.id, busy),
-      ),
-    )
-    .groupBy(tracks.id)
-    .orderBy(desc(plays))
-    .limit(CANDIDATES);
+  const pool = (await songRecords(radio.id, "score", CANDIDATES)).filter(
+    (s) =>
+      s.alfredOk &&
+      !busy.has(s.track.id) &&
+      s.track.durationSec != null &&
+      s.track.durationSec > 0 &&
+      s.track.durationSec <= radio.maxTrackSec,
+  );
 
-  // Weighted draw: a song that played to the end 4 times is 4x as likely as one that played once.
-  const pool = candidates.filter((c) => c.lastOutcome === "played" && c.plays > 0);
   const picked: string[] = [];
   while (lined < radio.autofillBelowSec && picked.length < MAX_PICKS_PER_RUN && pool.length) {
-    const total = pool.reduce((n, c) => n + c.plays, 0);
+    const total = pool.reduce((n, s) => n + s.score, 0);
     let r = Math.random() * total;
-    const i = Math.max(0, pool.findIndex((c) => (r -= c.plays) < 0));
+    const i = Math.max(0, pool.findIndex((s) => (r -= s.score) < 0));
     const [choice] = pool.splice(i, 1);
-    await db.insert(queueItems).values({ radioId: radio.id, trackId: choice.trackId, userId: null, isFill: true });
-    lined += choice.durationSec ?? 0;
-    picked.push(choice.title);
+    await db.insert(queueItems).values({ radioId: radio.id, trackId: choice.track.id, userId: null, isFill: true });
+    lined += choice.track.durationSec ?? 0;
+    picked.push(`${choice.track.title} (score ${choice.score})`);
   }
   return picked;
 }

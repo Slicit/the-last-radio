@@ -241,6 +241,19 @@ export class Channel {
   }
 
   private maintaining: Promise<void> | null = null;
+  private onAirNow = false;
+  private draining = false;
+  private drained: (() => void) | null = null;
+
+  /**
+   * Stop starting new songs and resolve once the one on air has finished,
+   * so a restart (deploy) never cuts a song in the middle.
+   */
+  drain(): Promise<void> {
+    this.draining = true;
+    if (!this.onAirNow) return Promise.resolve();
+    return new Promise((resolve) => (this.drained = resolve));
+  }
 
   /** Alfred's top-up (open hours only) and fetching the next songs ahead of time. */
   private maintain(): Promise<void> {
@@ -273,7 +286,7 @@ export class Channel {
   }
 
   private async loop() {
-    while (!this.stopped) {
+    while (!this.stopped && !this.draining) {
       try {
         // Between songs is the only time the schedule matters: whatever is
         // on air when the window closes plays to its end.
@@ -319,8 +332,17 @@ export class Channel {
           .returning({ id: queueItems.id });
         if (!claimed.length) continue; // removed while we were downloading
 
+        // Checked again here: a drain may have begun while we were downloading.
+        if (this.draining) {
+          await db
+            .update(queueItems)
+            .set({ status: "queued", startedAt: null })
+            .where(eq(queueItems.id, item.id));
+          break;
+        }
         this.log(`on air: ${item.track.title}`);
-        const outcome = await this.play(item.id, file);
+        this.onAirNow = true;
+        const outcome = await this.play(item.id, file).finally(() => (this.onAirNow = false));
         if (outcome !== "skipped") {
           await db
             .update(queueItems)
@@ -331,6 +353,7 @@ export class Channel {
             })
             .where(and(eq(queueItems.id, item.id), eq(queueItems.status, "playing")));
         }
+        if (this.draining) this.drained?.();
       } catch (e) {
         this.log("loop error:", e);
         await sleep(3000);

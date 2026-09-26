@@ -14,11 +14,12 @@ import { TrackArt } from "@/components/track-art";
 import { SongSearch } from "@/components/song-search";
 import { SkipControls } from "@/components/skip-controls";
 import { AddAgain, type Lineup } from "@/components/add-again";
+import { SongsList } from "@/components/songs-list";
 import { OnAir } from "@/components/on-air";
 import { useMe } from "@/hooks/use-auth";
 import { usePlayer } from "@/hooks/use-player";
 import { useElapsed, useHistory, useNow, useRadio, useStats, useStream } from "@/hooks/use-radio";
-import { api, type QueueItem, type Quota, type SkipState, type User } from "@/lib/api";
+import { api, type QueueItem, type Quota, type RadioStats, type SkipState, type User } from "@/lib/api";
 import { adderName, ago, closedLabel, duration, hours, hoursSummary, nextOpening, windowLabel } from "@/lib/format";
 
 export function RadioPage() {
@@ -123,7 +124,7 @@ export function RadioPage() {
         <TabsList>
           <TabsTrigger value="queue">Up next ({data.queue.length})</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
-          <TabsTrigger value="tracks">Top tracks</TabsTrigger>
+          <TabsTrigger value="songs">Songs</TabsTrigger>
           <TabsTrigger value="players">Top players</TabsTrigger>
         </TabsList>
         <TabsContent value="queue">
@@ -132,8 +133,8 @@ export function RadioPage() {
         <TabsContent value="history">
           <HistoryList slug={radio.slug} lineup={lineup} />
         </TabsContent>
-        <TabsContent value="tracks">
-          <TopTracks slug={radio.slug} lineup={lineup} />
+        <TabsContent value="songs">
+          <SongsList slug={radio.slug} lineup={lineup} />
         </TabsContent>
         <TabsContent value="players">
           <TopPlayers slug={radio.slug} />
@@ -451,43 +452,6 @@ function HistoryList({ slug, lineup }: { slug: string; lineup: Lineup }) {
   );
 }
 
-function TopTracks({ slug, lineup }: { slug: string; lineup: Lineup }) {
-  const { data, isLoading } = useStats(slug);
-  if (isLoading) return <Skeleton className="h-48 rounded-xl" />;
-  const max = data?.topTracks[0]?.plays ?? 1;
-  return (
-    <div className="space-y-4">
-      {data && <Totals totals={data.totals} />}
-      <Card>
-        <CardContent className="space-y-3">
-          {!data?.topTracks.length ? (
-            <Empty>No plays yet.</Empty>
-          ) : (
-            data.topTracks.map((t, i) => (
-              <div key={t.track.id} className="flex items-center gap-3">
-                <span className="w-5 text-right text-sm font-semibold text-muted-foreground tabular-nums">{i + 1}</span>
-                <TrackArt src={t.track.thumbnailUrl} className="size-10" />
-                <div className="min-w-0 flex-1 space-y-1">
-                  <a href={t.track.sourceUrl} target="_blank" rel="noreferrer" className="block truncate text-sm font-medium hover:underline">
-                    {t.track.title}
-                  </a>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-red-500/80" style={{ width: `${(t.plays / max) * 100}%` }} />
-                  </div>
-                </div>
-                <span className="w-16 shrink-0 text-right text-sm tabular-nums">
-                  {t.plays} <span className="text-xs text-muted-foreground">plays</span>
-                </span>
-                <AddAgain lineup={lineup} track={t.track} />
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 function TopPlayers({ slug }: { slug: string }) {
   const { data, isLoading } = useStats(slug);
   if (isLoading) return <Skeleton className="h-48 rounded-xl" />;
@@ -521,15 +485,16 @@ function TopPlayers({ slug }: { slug: string }) {
   );
 }
 
-function Totals({ totals }: { totals: { plays: number; uniqueTracks: number; uniquePlayers: number; airtimeSec: number } }) {
+function Totals({ totals }: { totals: RadioStats["totals"] }) {
   const cells = [
-    ["Tracks aired", totals.plays],
-    ["Unique tracks", totals.uniqueTracks],
-    ["Players", totals.uniquePlayers],
+    ["Songs aired", totals.plays],
+    ["Different songs", totals.uniqueTracks],
+    ["People adding", totals.uniquePlayers],
+    ["Downvotes", totals.downvotes],
     ["Airtime", hours(totals.airtimeSec)],
   ] as const;
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
       {cells.map(([label, value]) => (
         <Card key={label} size="sm">
           <CardContent>

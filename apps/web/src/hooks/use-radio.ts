@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api, type QueueItem, type RadioDetail, type RadioStats, type RadioSummary, type StreamStatus } from "@/lib/api";
+import {
+  api,
+  type QueueItem,
+  type RadioDetail,
+  type RadioStats,
+  type RadioSummary,
+  type SongRecord,
+  type SongSort,
+  type StreamStatus,
+} from "@/lib/api";
 
 export const useRadios = () =>
   useQuery({
@@ -45,6 +54,16 @@ export const useStats = (slug: string | undefined) =>
     queryFn: () => api.get<RadioStats>(`/radios/${slug}/stats`),
     enabled: !!slug,
     refetchInterval: 30_000,
+  });
+
+export const useSongs = (slug: string | undefined, sort: SongSort) =>
+  useQuery({
+    queryKey: ["radio", slug, "songs", sort],
+    queryFn: () => api.get<{ songs: SongRecord[] }>(`/radios/${slug}/songs?sort=${sort}`),
+    enabled: !!slug,
+    refetchInterval: 30_000,
+    placeholderData: (prev) => prev,
+    select: (d) => d.songs,
   });
 
 /** Seconds into the on-air track, as heard by a listener `delaySec` behind live. */

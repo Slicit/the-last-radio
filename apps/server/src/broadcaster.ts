@@ -35,7 +35,14 @@ async function main() {
 
   const channels = new Map<string, Channel>();
 
-  const shutdown = () => {
+  // Deploys send SIGTERM: let every song on air finish first (compose allows
+  // up to 25 minutes via stop_grace_period), then go. A second signal is final.
+  let stopping = false;
+  const shutdown = async () => {
+    if (stopping) process.exit(0);
+    stopping = true;
+    console.log("shutting down after the songs on air finish…");
+    await Promise.race([Promise.all([...channels.values()].map((ch) => ch.drain())), sleep(24 * 60_000)]);
     for (const ch of channels.values()) ch.stop();
     process.exit(0);
   };
@@ -44,6 +51,10 @@ async function main() {
 
   // Reconcile running channels with the radios table.
   for (;;) {
+    if (stopping) {
+      await sleep(1000);
+      continue;
+    }
     try {
       const active = await db
         .select({ id: radios.id, slug: radios.slug })

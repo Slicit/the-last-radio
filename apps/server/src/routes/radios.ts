@@ -12,6 +12,7 @@ import { streamStatus } from "../lib/mediamtx.js";
 import { heartbeat, isListening, listenerCount } from "../lib/listeners.js";
 import { applyVotes, skipItem, skipState } from "../lib/skip.js";
 import { hoursStatus, isValidTimezone } from "../lib/schedule.js";
+import { songRecords } from "../lib/track-stats.js";
 
 const { radios, queueItems, tracks, users, skipVotes } = schema;
 
@@ -278,27 +279,7 @@ export const radioRoutes = new Hono<AppEnv>()
     const aired = and(eq(queueItems.radioId, radio.id), isNotNull(queueItems.startedAt));
     const plays = sql<number>`count(*)::int`;
 
-    const [topTracks, topPlayers, [totals]] = await Promise.all([
-      db
-        .select({
-          track: {
-            id: tracks.id,
-            title: tracks.title,
-            artist: tracks.artist,
-            durationSec: tracks.durationSec,
-            thumbnailUrl: tracks.thumbnailUrl,
-            sourceUrl: tracks.sourceUrl,
-            sourceKey: tracks.sourceKey,
-          },
-          plays,
-          lastPlayedAt: sql`max(${queueItems.startedAt})`.mapWith(queueItems.startedAt),
-        })
-        .from(queueItems)
-        .innerJoin(tracks, eq(tracks.id, queueItems.trackId))
-        .where(aired)
-        .groupBy(tracks.id)
-        .orderBy(desc(plays), desc(sql`max(${queueItems.startedAt})`))
-        .limit(10),
+    const [topPlayers, [totals], [{ downvotes }]] = await Promise.all([
       db
         .select({
           user: { id: users.id, displayName: users.displayName },
@@ -321,9 +302,24 @@ export const radioRoutes = new Hono<AppEnv>()
         })
         .from(queueItems)
         .where(aired),
+      db
+        .select({ downvotes: sql<number>`count(*)::int` })
+        .from(skipVotes)
+        .innerJoin(queueItems, eq(queueItems.id, skipVotes.queueItemId))
+        .where(eq(queueItems.radioId, radio.id)),
     ]);
-    return c.json({ topTracks, topPlayers, totals });
+    return c.json({ topPlayers, totals: { ...totals, downvotes } });
   })
+
+  // Every song this station has aired, with plays, adds, downvotes and skips.
+  .get(
+    "/:slug/songs",
+    zValidator("query", z.object({ sort: z.enum(["played", "score", "downvoted", "recent"]).default("played") })),
+    async (c) => {
+      const radio = await getRadio(c.req.param("slug"));
+      return c.json({ songs: await songRecords(radio.id, c.req.valid("query").sort) });
+    },
+  )
 
   .get("/:slug/stream", async (c) => {
     const radio = await getRadio(c.req.param("slug"));

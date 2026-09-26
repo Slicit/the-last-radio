@@ -85,9 +85,26 @@ export type RadioDetail = {
 };
 
 export type RadioStats = {
-  topTracks: { track: Track; plays: number; lastPlayedAt: string }[];
   topPlayers: { user: { id: string; displayName: string }; plays: number; listenedSec: number }[];
-  totals: { plays: number; uniqueTracks: number; uniquePlayers: number; airtimeSec: number };
+  totals: { plays: number; uniqueTracks: number; uniquePlayers: number; airtimeSec: number; downvotes: number };
+};
+
+export type SongSort = "played" | "score" | "downvoted" | "recent";
+
+/** A song's record on one station; Alfred picks by `score`. */
+export type SongRecord = {
+  track: Track;
+  plays: number;
+  playsByPeople: number;
+  playsByAlfred: number;
+  airings: number;
+  adders: number;
+  downvotes: number;
+  skips: number;
+  lastPlayedAt: string | null;
+  lastOutcome: string | null;
+  score: number;
+  alfredOk: boolean;
 };
 
 export type StreamStatus = {

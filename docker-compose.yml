@@ -54,6 +54,8 @@ services:
     image: lastradio-server
     container_name: lastradio-broadcaster
     command: ["node", "dist/broadcaster.js"]
+    # On restart the broadcaster lets songs on air finish before exiting.
+    stop_grace_period: 25m
     environment: *server-env
     volumes:
       - audiocache:/data/cache
