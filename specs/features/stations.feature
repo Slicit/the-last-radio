@@ -5,9 +5,17 @@ Feature: Stations
   @e2e
   Scenario: An admin creates a station
     Given Alex is an admin on the Admin page
-    When Alex creates "Night Shift" with 5 songs per hour and a 10 minute track limit
-    Then "Night Shift" is listed with slug "night-shift"
+    When Alex clicks "New station", names it "Night Shift" and sets 5 songs per person
+    Then Alex lands on "Night Shift"'s own editor page, ready for people, domains and hours
+    And "Night Shift" is listed in Admin with address "night-shift"
     And the station starts streaming within seconds, playing silence until someone adds a song
+
+  @e2e
+  Scenario: Unsaved station changes aren't lost by accident
+    Given Alex is editing a station
+    Then its settings are grouped in sections: General, Song rules, Who can listen, Broadcast hours, Alfred
+    And an "Unsaved changes" bar with Discard and Save appears only once something changed
+    And leaving the page (or closing the tab) with unsaved changes asks first
 
   @e2e
   Scenario: Listeners see every active station on the home page

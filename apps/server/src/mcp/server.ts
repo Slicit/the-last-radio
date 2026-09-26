@@ -14,6 +14,7 @@ import { SEARCH_SOURCES, searchSongs } from "../lib/search.js";
 import { songRecords, type SongSort } from "../lib/track-stats.js";
 import * as svc from "../services/radio.js";
 import { canAccess } from "../lib/access.js";
+import { upvote } from "../lib/upvotes.js";
 import { fmtDuration, itemLine, nextOpeningText, ordinal, when } from "./format.js";
 
 type Ctx = { user: PublicUser; scopes: Scope[]; baseUrl: string };
@@ -275,6 +276,32 @@ export function buildMcpServer(ctx: Ctx): McpServer {
         if (skipped) return `Downvoted, and that was enough: the song was skipped on ${radio.name}.`;
         const d = await svc.radioDetail(radio, user);
         return `Downvoted "${d.nowPlaying?.track.title}". ${d.skip?.votes ?? 1} of ${d.skip?.needed ?? "?"} downvotes needed to skip.`;
+      }),
+  );
+
+  server.registerTool(
+    "upvote",
+    {
+      title: "Upvote a song",
+      description:
+        "Ask to hear a song more: Alfred (the auto-DJ) picks upvoted songs more often. Defaults to the song on air; or give a song_id from song_stats. 3 upvotes a day.",
+      inputSchema: { station, song_id: z.string().uuid().optional() },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    ({ station: ref, song_id }) =>
+      run(async () => {
+        const radio = await findStation(ref, user);
+        let trackId = song_id;
+        let title = "that song";
+        if (!trackId) {
+          const d = await svc.radioDetail(radio, user);
+          if (!d.nowPlaying) throw new HTTPException(409, { message: "Nothing is playing right now; give a song_id." });
+          trackId = d.nowPlaying.track.id;
+          title = `"${d.nowPlaying.track.title}"`;
+        }
+        const r = await upvote(radio, user, trackId);
+        const left = r.allowance.remaining;
+        return `${r.already ? "Already upvoted" : "Upvoted"} ${title} on ${radio.name}. ${left} upvote${left === 1 ? "" : "s"} left today.`;
       }),
   );
 

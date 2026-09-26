@@ -45,7 +45,7 @@ Feature: Connect your AI
   @integration
   Scenario: The assistant's tools
     Then an assistant can list_stations, now_playing, get_queue, song_stats and search_songs
-    And with "Listen & add songs" it can also add_song (by link, song id or name), downvote, undo_downvote and skip_my_song
+    And with "Listen & add songs" it can also add_song (by link, song id or name), upvote, downvote, undo_downvote and skip_my_song
     And stations can be named by slug or name; an unknown one lists the real ones
 
   @integration

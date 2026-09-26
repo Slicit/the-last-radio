@@ -22,6 +22,8 @@ export type Track = {
   sourceKey: string;
   /** The source is gone (weekly song check); kept for history. */
   unavailable?: boolean;
+  /** People who upvoted it on this station. */
+  upvotes?: number;
 };
 
 export type SearchSource = "youtube" | "soundcloud";
@@ -101,6 +103,10 @@ export type RadioDetail = {
   /** Every song lined up, for "already in line" checks. */
   queuedKeys: string[];
   quota: Quota | null;
+  /** Track ids you upvoted on this station. */
+  myUpvotes: string[];
+  /** Your upvotes left today (null when signed out). */
+  upvotes: UpvoteAllowance | null;
   serverTime: string;
 };
 
@@ -126,6 +132,7 @@ export type SongRecord = {
   score: number;
   alfredOk: boolean;
   unavailable: boolean;
+  upvotes: number;
 };
 
 export type StreamStatus = {
@@ -145,6 +152,8 @@ export type StationAccess = {
   domains: string[];
   mailConfigured: boolean;
 };
+
+export type UpvoteAllowance = { limit: number; remaining: number; nextAt: string | null };
 
 export type Page<T> = { items: T[]; total: number; page: number; pageSize: number };
 

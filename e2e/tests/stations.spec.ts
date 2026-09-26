@@ -6,16 +6,33 @@ test.describe(() => {
 
   test("An admin creates a station", async ({ page }) => {
     await page.goto("/admin");
-    await page.getByRole("button", { name: "New station" }).click();
-    const dialog = page.getByRole("dialog");
-    await dialog.getByLabel("Name").fill("Night Shift E2E");
-    await expect(dialog.getByLabel("Slug")).toHaveValue("night-shift-e2e");
-    await dialog.getByLabel("Songs", { exact: true }).fill("5");
-    await dialog.getByRole("button", { name: "Create" }).click();
+    await page.getByRole("link", { name: "New station" }).click();
+    await expect(page).toHaveURL(/\/admin\/stations\/new$/);
+    await page.getByLabel("Name").fill("Night Shift E2E");
+    await expect(page.getByLabel("Address")).toHaveValue("night-shift-e2e");
+    await page.getByLabel("Songs per person").fill("5");
+    await page.getByRole("button", { name: "Create station" }).click();
     await expect(page.getByText("Station created")).toBeVisible();
+    // Straight on to the station's own editor, ready for people and hours.
+    await expect(page).toHaveURL(/\/admin\/stations\/night-shift-e2e$/);
+    await expect(page.getByRole("heading", { name: "Night Shift E2E" })).toBeVisible();
+    await page.getByRole("link", { name: "Admin", exact: true }).first().click();
     await expect(page.getByRole("row", { name: /Night Shift E2E/ })).toBeVisible();
     // It goes on air (silence) within seconds.
     await expect(page.getByRole("row", { name: /Night Shift E2E/ }).getByText("On air")).toBeVisible({ timeout: 30_000 });
+  });
+
+  test("Unsaved station changes aren't lost by accident", async ({ page }) => {
+    await page.goto("/admin/stations/e2e-main");
+    await expect(page.getByLabel("Description")).toBeVisible();
+    await expect(page.getByText("Unsaved changes")).toBeHidden();
+    await page.getByLabel("Description").fill("Edited, not saved");
+    await expect(page.getByText("Unsaved changes")).toBeVisible();
+    page.once("dialog", (d) => d.dismiss()); // "Leave without saving?" → stay
+    await page.locator("header").getByRole("link", { name: "Radios" }).click();
+    await expect(page).toHaveURL(/\/admin\/stations\/e2e-main$/);
+    await page.getByRole("button", { name: "Discard" }).click();
+    await expect(page.getByText("Unsaved changes")).toBeHidden();
   });
 });
 

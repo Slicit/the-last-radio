@@ -13,6 +13,7 @@ import { isValidTimezone } from "../lib/schedule.js";
 import { songCount, songRecords } from "../lib/track-stats.js";
 import { offsetOf, pageOf, pagingQuery } from "../lib/paging.js";
 import * as svc from "../services/radio.js";
+import { removeUpvote, upvote } from "../lib/upvotes.js";
 
 const { radios } = schema;
 
@@ -157,6 +158,16 @@ export const radioRoutes = new Hono<AppEnv>()
     const radio = await svc.getVisibleRadio(c.req.param("slug"), c.get("user"));
     const { skipped } = await svc.downvote(radio, c.get("user")!, c.req.valid("json").itemId);
     return c.json({ skipped });
+  })
+
+  .post("/:slug/upvotes", requireScope("radio:write"), zValidator("json", z.object({ trackId: z.string().uuid() })), async (c) => {
+    const radio = await svc.getVisibleRadio(c.req.param("slug"), c.get("user"));
+    return c.json(await upvote(radio, c.get("user")!, c.req.valid("json").trackId));
+  })
+
+  .delete("/:slug/upvotes/:trackId", requireScope("radio:write"), async (c) => {
+    const radio = await svc.getVisibleRadio(c.req.param("slug"), c.get("user"));
+    return c.json(await removeUpvote(radio, c.get("user")!, c.req.param("trackId")));
   })
 
   .delete("/:slug/votes/:itemId", requireScope("radio:write"), async (c) => {

@@ -12,7 +12,7 @@ import { AVATAR_MAX_BYTES, processAvatar } from "../lib/avatar.js";
 import { rateLimit } from "../lib/rate-limit.js";
 import { zValidator } from "../lib/validate.js";
 
-const { users, avatars, sessions, apiTokens, oauthCodes, oauthClients, feedback, feedbackVotes, queueItems, tracks, radios, skipVotes, radioMembers, emailTokens } = schema;
+const { users, avatars, sessions, apiTokens, oauthCodes, oauthClients, feedback, feedbackVotes, queueItems, tracks, radios, skipVotes, radioMembers, emailTokens, songUpvotes } = schema;
 export const THEMES = ["night", "light", "vintage"] as const;
 
 const perUser = (limit: number, windowMs: number, message: string) =>
@@ -85,7 +85,7 @@ export const meRoutes = new Hono<AppEnv>()
   .get("/export", perUser(5, 3600_000, "Too many exports."), async (c) => {
     const id = c.get("user")!.id;
     const [me] = await db.select().from(users).where(eq(users.id, id));
-    const [songs, votes, notes, keys, memberships] = await Promise.all([
+    const [songs, votes, notes, keys, memberships, upvoted] = await Promise.all([
       db
         .select({
           station: radios.slug,
@@ -117,6 +117,12 @@ export const meRoutes = new Hono<AppEnv>()
         .from(radioMembers)
         .innerJoin(radios, eq(radios.id, radioMembers.radioId))
         .where(eq(radioMembers.userId, id)),
+      db
+        .select({ station: radios.slug, title: tracks.title, upvotedAt: songUpvotes.createdAt })
+        .from(songUpvotes)
+        .innerJoin(radios, eq(radios.id, songUpvotes.radioId))
+        .innerJoin(tracks, eq(tracks.id, songUpvotes.trackId))
+        .where(eq(songUpvotes.userId, id)),
     ]);
     const data = {
       exportedAt: new Date().toISOString(),
@@ -133,6 +139,7 @@ export const meRoutes = new Hono<AppEnv>()
       privateStations: memberships,
       songsAdded: songs,
       downvotes: votes,
+      upvotes: upvoted,
       feedback: notes,
       apiAccess: keys,
       note: "Passwords, session cookies and API keys are stored only as one-way hashes and can't be exported.",

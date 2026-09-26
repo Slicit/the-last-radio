@@ -253,6 +253,30 @@ export const avatars = pgTable("avatars", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ---------------------------------------------------------------- upvotes
+
+// "Play this more": one per person, song and station. Alfred weighs them.
+export const songUpvotes = pgTable(
+  "song_upvotes",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    radioId: uuid("radio_id")
+      .notNull()
+      .references(() => radios.id, { onDelete: "cascade" }),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.radioId, t.trackId] }),
+    index("song_upvotes_radio_track_idx").on(t.radioId, t.trackId),
+    index("song_upvotes_user_time_idx").on(t.userId, t.createdAt),
+  ],
+);
+
 // ---------------------------------------------------------------- private stations
 
 export const radioMembers = pgTable(

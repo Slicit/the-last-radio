@@ -71,6 +71,13 @@
       "when": 1790436639931,
       "tag": "0009_private_stations",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790442306383,
+      "tag": "0010_upvotes",
+      "breakpoints": true
     }
   ]
 }

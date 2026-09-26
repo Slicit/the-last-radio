@@ -31,8 +31,9 @@ private, open only in the evening), and let your AI assistant add songs for you.
 - **Add again** from a station's history or song list.
 
 ### The crowd decides
+- **Upvote** the song on air or any song in the history (3 a day): Alfred plays upvoted songs more.
 - **Vote to skip**: when enough of the people *listening* downvote, the song goes. Whoever added a song can skip their own; admins skip anything.
-- **Alfred, the fill-in DJ**: when less than 15 minutes is lined up, Alfred replays songs the station loved, weighted by a score (plays, people who added it, downvotes, skips). He never brings back a song that was voted off, and people's picks always play first.
+- **Alfred, the fill-in DJ**: when less than 15 minutes is lined up, Alfred replays songs the station loved, weighted by a score (plays, people who added it, upvotes, downvotes, skips). He never brings back a song that was voted off, and people's picks always play first.
 - **Song records** for every station: most played, crowd favourites, most downvoted, recently played; plus top players.
 - A weekly **song health check** marks songs that disappeared from their site; *Find it* searches for another copy.
 
@@ -42,7 +43,7 @@ private, open only in the evening), and let your AI assistant add songs for you.
 - **Private stations** for a team or a family: add people by email, or let in everyone with a **confirmed** address at a domain (`@example.com`). Private audio is protected too, not just the page.
 
 ### Your AI, your scripts
-- **MCP server** at `/mcp`: ask Claude (or any MCP client) *"what's playing on Main Stage?"* or *"add some Daft Punk"*. Tools: `list_stations`, `now_playing`, `get_queue`, `song_stats`, `search_songs`, `add_song`, `downvote`, `undo_downvote`, `skip_my_song`.
+- **MCP server** at `/mcp`: ask Claude (or any MCP client) *"what's playing on Main Stage?"* or *"add some Daft Punk"*. Tools: `list_stations`, `now_playing`, `get_queue`, `song_stats`, `search_songs`, `add_song`, `upvote`, `downvote`, `undo_downvote`, `skip_my_song`.
 - **OAuth 2.1** (PKCE, dynamic client registration, refresh rotation) so assistants sign in like people do, with a consent screen, or **API keys** with read-only or read-and-add scopes.
 - **A documented REST API**: OpenAPI 3.1 at `/api/openapi.json`, browsable on the *Developers* page.
 
@@ -65,7 +66,7 @@ private, open only in the evening), and let your AI assistant add songs for you.
 |---|---|
 | ![Stations](docs/screenshots/home.png) **Stations**: what's on everywhere, private ones marked with a lock. | ![Search](docs/screenshots/search.png) **Search**: find a song by name and add it in one click. |
 | ![Songs](docs/screenshots/songs-light.png) **Song records** in the *Light* theme: crowd favourites and why Alfred leaves a song alone. | ![Vintage](docs/screenshots/station-vintage.png) **The *Vintage* theme**. |
-| ![Admin](docs/screenshots/admin.png) **Admin**: the feedback inbox and every station's rules. | ![Station editor](docs/screenshots/station-editor.png) **A private station**: people and email domains. |
+| ![Admin](docs/screenshots/admin.png) **Admin**: the feedback inbox and every station's rules. | ![Station editor](docs/screenshots/station-editor.png) **The station editor**: who can listen, hours, Alfred. |
 | ![Connect your AI](docs/screenshots/connect.png) **Connect your AI**: the MCP address, API keys, connected apps. | ![Phone](docs/screenshots/mobile.png) **On a phone**. |
 
 <sub>Screenshots use invented artists, titles and artwork (see `e2e/docs/demo-data.ts`); regenerate them with `scripts/screenshots.sh`.</sub>

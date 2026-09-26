@@ -2,8 +2,12 @@ import { ListPlus, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAddSong } from "@/hooks/use-add-song";
 
+import type { UpvoteState } from "@/components/upvote-button";
+
 /** What's already lined up, so "add again" can say why it isn't offered. */
 export type Lineup = {
+  /** For the upvote buttons on the same rows. */
+  upvote: UpvoteState;
   slug: string;
   signedIn: boolean;
   onAirKey: string | null;

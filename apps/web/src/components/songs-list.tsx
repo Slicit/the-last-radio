@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrackArt } from "@/components/track-art";
 import { AddAgain, type Lineup } from "@/components/add-again";
+import { UpvoteButton } from "@/components/upvote-button";
 import { useSongs } from "@/hooks/use-radio";
 import type { SongRecord, SongSort } from "@/lib/api";
 import { ago } from "@/lib/format";
@@ -24,6 +25,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 function recordLine(s: SongRecord): string {
   const parts = [plural(s.plays, "play")];
   if (s.adders) parts.push(`added by ${plural(s.adders, "person", "people")}`);
+  if (s.upvotes) parts.push(plural(s.upvotes, "upvote"));
   if (s.downvotes) parts.push(plural(s.downvotes, "downvote"));
   if (s.skips) parts.push(s.skips === 1 ? "skipped once" : `skipped ${s.skips}×`);
   return parts.join(" · ");
@@ -113,6 +115,7 @@ export function SongsList({ slug, lineup }: { slug: string; lineup: Lineup }) {
                       </div>
                     )}
                   </div>
+                  <UpvoteButton state={lineup.upvote} trackId={s.track.id} count={s.upvotes} />
                   <AddAgain lineup={lineup} track={{ ...s.track, unavailable: s.unavailable }} />
                 </div>
               );

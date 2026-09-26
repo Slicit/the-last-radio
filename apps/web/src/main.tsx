@@ -17,6 +17,7 @@ import { OAuthAuthorizePage } from "@/pages/oauth-authorize";
 import { PrivacyPage } from "@/pages/privacy";
 import { VerifyEmailPage } from "@/pages/verify-email";
 import { DevelopersPage } from "@/pages/developers";
+import { StationEditorPage } from "@/pages/station-editor";
 import "./index.css";
 
 function ThemedToaster() {
@@ -40,6 +41,8 @@ const router = createBrowserRouter([
       { path: "/login", element: <AuthPage mode="login" /> },
       { path: "/register", element: <AuthPage mode="register" /> },
       { path: "/admin", element: <AdminPage /> },
+      { path: "/admin/stations/new", element: <StationEditorPage /> },
+      { path: "/admin/stations/:slug", element: <StationEditorPage /> },
       { path: "/connect", element: <ConnectPage /> },
       { path: "/oauth/authorize", element: <OAuthAuthorizePage /> },
       { path: "/privacy", element: <PrivacyPage /> },

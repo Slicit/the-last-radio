@@ -20,7 +20,11 @@ async function signIn(page: Page, email: string) {
 
 /** The demo has no broadcaster: make stations look live, and fake a search. */
 async function stage(page: Page) {
-  await page.route("**/api/radios/*/stream", (r: Route) => r.fulfill({ json: { live: true, readySince: new Date().toISOString(), bytesReceived: 1, tracks: ["MPEG-4 Audio"], listeners: 7, hlsUrl: "" } }));
+  // Live everywhere except Night Shift, which is closed at this hour.
+  await page.route("**/api/radios/*/stream", (r: Route) => {
+    const live = !r.request().url().includes("/night-shift/");
+    return r.fulfill({ json: { live, readySince: live ? new Date().toISOString() : null, bytesReceived: 1, tracks: [], listeners: live ? 7 : 0, hlsUrl: "" } });
+  });
   await page.route("**/api/search?**", (r: Route) =>
     r.fulfill({
       json: {
@@ -132,9 +136,9 @@ test("README screenshots", async ({ browser, baseURL }) => {
   await ap.goto("/admin");
   await expect(ap.getByText("unread")).toBeVisible();
   await shot(ap, "admin");
-  await ap.getByRole("row", { name: /Team Room/ }).getByRole("button", { name: "Edit" }).click();
-  await expect(ap.getByText("Who can listen")).toBeVisible();
-  await ap.getByRole("dialog").evaluate((d) => d.scrollTo(0, 420));
+  await ap.goto("/admin/stations/team-room");
+  await expect(ap.getByText("@demo.radio")).toBeVisible();
+  await ap.evaluate(() => window.scrollTo(0, document.getElementById("access")!.offsetTop - 90));
   await shot(ap, "station-editor");
 
   // Phone.

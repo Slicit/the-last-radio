@@ -14,6 +14,7 @@ import { TrackArt } from "@/components/track-art";
 import { SongSearch } from "@/components/song-search";
 import { SkipControls } from "@/components/skip-controls";
 import { AddAgain, type Lineup } from "@/components/add-again";
+import { UpvoteButton, type UpvoteState } from "@/components/upvote-button";
 import { SongsList } from "@/components/songs-list";
 import { OnAir } from "@/components/on-air";
 import { useMe } from "@/hooks/use-auth";
@@ -46,7 +47,14 @@ export function RadioPage() {
 
   const { radio, quota } = data;
   const blocked = !!quota && !quota.unlimited && quota.remaining === 0;
+  const upvote: UpvoteState = {
+    slug: radio.slug,
+    signedIn: !!user,
+    mine: new Set(data.myUpvotes),
+    allowance: data.upvotes,
+  };
   const lineup: Lineup = {
+    upvote,
     slug: radio.slug,
     signedIn: !!user,
     onAirKey: data.nowPlaying?.track.sourceKey ?? null,
@@ -109,6 +117,7 @@ export function RadioPage() {
           name={radio.name}
           item={data.nowPlaying}
           upNext={data.queue[0] ?? null}
+          upvote={upvote}
           clockSkewMs={data.clockSkewMs}
           closed={!radio.hours.open}
           isAdmin={user?.role === "admin"}
@@ -157,6 +166,7 @@ function NowPlaying({
   name,
   item,
   upNext,
+  upvote,
   clockSkewMs,
   closed,
   isAdmin,
@@ -168,6 +178,7 @@ function NowPlaying({
   item: QueueItem | null;
   /** Shown while the broadcaster switches songs (a skip, a song ending). */
   upNext: QueueItem | null;
+  upvote: UpvoteState;
   clockSkewMs: number;
   closed: boolean;
   isAdmin: boolean;
@@ -248,6 +259,7 @@ function NowPlaying({
                 <ExternalLink /> Source
               </a>
             )}
+            {item && <UpvoteButton state={upvote} trackId={item.track.id} count={item.track.upvotes} size="lg" />}
             {item && (
               <SkipControls
                 slug={slug}
@@ -474,6 +486,7 @@ function HistoryList({ slug, lineup }: { slug: string; lineup: Lineup }) {
                       <span className="block text-muted-foreground/70">{skippedLabel(item.skipReason)}</span>
                     )}
                   </span>
+                  <UpvoteButton state={lineup.upvote} trackId={item.track.id} count={item.track.upvotes} />
                   <AddAgain lineup={lineup} track={item.track} />
                 </>
               }

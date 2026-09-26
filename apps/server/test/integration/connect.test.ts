@@ -161,7 +161,7 @@ describe("Connect your AI", () => {
       const ro = await key(alex, ["radio:read"]);
       const names = (t: string) => mcp(t, "tools/list").then((r) => r.json.result.tools.map((x: any) => x.name).sort());
       expect(await names(rw.token)).toEqual(
-        ["add_song", "downvote", "get_queue", "list_stations", "now_playing", "search_songs", "skip_my_song", "song_stats", "undo_downvote"],
+        ["add_song", "downvote", "get_queue", "list_stations", "now_playing", "search_songs", "skip_my_song", "song_stats", "undo_downvote", "upvote"],
       );
       expect(await names(ro.token)).toEqual(["get_queue", "list_stations", "now_playing", "search_songs", "song_stats"]);
       expect((await tool(rw.token, "list_stations")).text).toContain("Main Stage (slug: main)");

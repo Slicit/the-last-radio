@@ -49,7 +49,7 @@ const Radio = obj(
 );
 const Quota = obj({ unlimited: bool, limit: int, windowSec: int, used: int, remaining: int, nextSlotAt: nullable(time) });
 const SongRecord = obj({
-  track: ref("Track"), plays: int, playsByPeople: int, playsByAlfred: int, airings: int, adders: int, downvotes: int, skips: int,
+  track: ref("Track"), plays: int, playsByPeople: int, playsByAlfred: int, airings: int, adders: int, downvotes: int, upvotes: int, skips: int,
   lastPlayedAt: nullable(time), lastOutcome: nullable(str), score: { type: "number" }, alfredOk: bool, unavailable: bool,
 });
 const User = obj({ id: str, email: str, displayName: str, role: { enum: ["admin", "player"] }, theme: { enum: ["night", "light", "vintage"] }, avatarUrl: nullable(str), privacyAckRequired: bool, emailVerified: bool });
@@ -137,6 +137,8 @@ const ops: Record<string, Op> = {
   "POST /api/radios/{slug}/skip": { summary: "Skip the song on air (yours; admins: any)", tag: "Songs", auth: "write", ok: obj({ skipped: bool }) },
   "POST /api/radios/{slug}/votes": { summary: "Downvote (vote to skip) the song on air", tag: "Songs", auth: "write", body: obj({ itemId: str }), ok: obj({ skipped: bool }), description: "Only counts while you're listening to the station." },
   "DELETE /api/radios/{slug}/votes/{itemId}": { summary: "Take back your downvote", tag: "Songs", auth: "write", ok: obj({ ok: bool }) },
+  "POST /api/radios/{slug}/upvotes": { summary: "Upvote a song (3 a day): Alfred plays it more", tag: "Songs", auth: "write", body: obj({ trackId: str }), ok: obj({ already: bool, allowance: obj({ limit: int, remaining: int, nextAt: nullable(time) }) }) },
+  "DELETE /api/radios/{slug}/upvotes/{trackId}": { summary: "Take back an upvote", tag: "Songs", auth: "write", ok: obj({ allowance: { type: "object" } }) },
   "GET /api/search": {
     summary: "Search YouTube or SoundCloud",
     tag: "Songs",

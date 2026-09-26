@@ -39,3 +39,30 @@ test("Finding another copy", async ({ page }) => {
   await row.getByRole("button", { name: "Find it" }).click();
   await expect(page.getByRole("combobox", { name: "Search for a song" })).toHaveValue("Vanished Hit");
 });
+
+// specs/features/upvotes.feature
+test.describe("upvotes", () => {
+  test.use({ storageState: ".auth/player.json" });
+
+  test("Upvoting a song, and three a day", async ({ page }) => {
+    await page.goto("/r/e2e-records");
+    await page.getByRole("tab", { name: "Songs" }).click();
+    const rowOf = (title: string) =>
+      page.getByText(title, { exact: true }).locator("xpath=ancestor::div[contains(@class,'py-2.5')]");
+    const fav = rowOf("Crowd Favourite");
+    await fav.getByRole("button", { name: "Upvote" }).click();
+    await expect(page.getByText("Upvoted: Alfred will play it more")).toBeVisible();
+    await expect(fav.getByRole("button", { name: "Take back your upvote" })).toHaveAttribute("aria-pressed", "true");
+    await expect(fav.getByText(/1 upvote\b/)).toBeVisible();
+    // Use up the day's upvotes on two more songs.
+    await rowOf("Alfred Pick").getByRole("button", { name: "Upvote" }).click();
+    await rowOf("Voted Off Tune").getByRole("button", { name: "Upvote" }).click();
+    await expect(rowOf("Voted Off Tune").getByRole("button", { name: "Take back your upvote" })).toBeVisible();
+    const vanished = rowOf("Vanished Hit (Official Video)").getByRole("button", { name: "Upvote" });
+    await expect(vanished).toBeDisabled();
+    await expect(vanished).toHaveAttribute("title", "No upvotes left today");
+    // Taking one back frees one.
+    await fav.getByRole("button", { name: "Take back your upvote" }).click();
+    await expect(vanished).toBeEnabled();
+  });
+});

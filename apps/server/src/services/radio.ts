@@ -12,6 +12,7 @@ import { isListening, listenerCount } from "../lib/listeners.js";
 import { applyVotes, skipItem, skipState } from "../lib/skip.js";
 import { hoursStatus } from "../lib/schedule.js";
 import { canAccess, visibleTo } from "../lib/access.js";
+import { myUpvotes, upvoteAllowance } from "../lib/upvotes.js";
 import { offsetOf, pageOf, type Paging } from "../lib/paging.js";
 
 const { radios, queueItems, tracks, users, skipVotes } = schema;
@@ -36,6 +37,7 @@ const itemColumns = {
     sourceUrl: tracks.sourceUrl,
     sourceKey: tracks.sourceKey,
     unavailable: sql<boolean>`${tracks.unavailableAt} is not null`,
+    upvotes: sql<number>`(select count(*)::int from song_upvotes u where u.radio_id = ${queueItems.radioId} and u.track_id = ${tracks.id})`,
   },
   isFill: queueItems.isFill,
   // Null for Alfred's picks.
@@ -215,11 +217,13 @@ export async function queueSummary(radio: Radio) {
 
 export async function radioDetail(radio: Radio, user: PublicUser | null) {
   const firstPage = { page: 1, pageSize: 20 };
-  const [playing, queue, summary, quota] = await Promise.all([
+  const [playing, queue, summary, quota, upvoted, upvoteLeft] = await Promise.all([
     nowPlaying([radio.id]),
     itemsQuery().where(queuedHere(radio)).orderBy(...playOrder).limit(firstPage.pageSize),
     queueSummary(radio),
     user ? quotaFor(radio, user) : null,
+    myUpvotes(radio, user),
+    user ? upvoteAllowance(user.id) : null,
   ]);
   const current = playing.get(radio.id) ?? null;
   return {
@@ -233,6 +237,9 @@ export async function radioDetail(radio: Radio, user: PublicUser | null) {
     // Everything lined up, so "already in line" checks see past the first page.
     queuedKeys: summary.keys,
     quota,
+    // Track ids this person upvoted here, and how many upvotes they have left today.
+    myUpvotes: upvoted,
+    upvotes: upvoteLeft,
     listeners: listenerCount(radio.id),
     serverTime: new Date().toISOString(),
   };
