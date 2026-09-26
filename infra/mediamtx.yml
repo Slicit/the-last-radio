@@ -1,0 +1,42 @@
+# mediamtx for The Last Radio.
+#
+# The broadcaster publishes one RTSP path per radio (named after the radio
+# slug); listeners read it as HLS through the web container's /hls proxy.
+# None of these ports are published on the host, so publish/api permissions
+# are only reachable from inside the lastradio-net network.
+
+logLevel: info
+
+api: yes
+apiAddress: :9997
+
+rtsp: yes
+rtspAddress: :8554
+rtspTransports: [tcp]
+
+rtmp: no
+webrtc: no
+srt: no
+moq: no
+
+hls: yes
+hlsAddress: :8888
+hlsAlwaysRemux: yes
+hlsVariant: fmp4
+hlsSegmentCount: 7
+hlsSegmentDuration: 2s
+hlsAllowOrigins: ['*']
+
+authMethod: internal
+authInternalUsers:
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: publish
+      - action: read
+      - action: playback
+      - action: api
+
+paths:
+  all_others:
