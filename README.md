@@ -95,6 +95,7 @@ Open <http://localhost:28700>, **sign up: the first account becomes the admin**,
 | `PUBLIC_URL` | derived | The public origin, e.g. `https://radio.example.com`. Needed behind a TLS proxy (OAuth, MCP). |
 | `COOKIE_SECURE` | `false` | Set `true` when served over HTTPS. |
 | `SMTP_URL` / `MAIL_FROM` | unset | Email for confirming addresses (private stations' domain rules). Without it, admins can mark people verified. |
+| `MAIL_RETURN_PATH` | the From address | Where bounces go (the envelope sender SPF checks). To send from the host itself, see [`deploy/mail`](deploy/mail/README.md) and `docker-compose.mail.yml`. |
 | `PRIVACY_CONTROLLER` / `PRIVACY_CONTACT` | unset | Who runs this radio and how to reach them, shown in the privacy notice. |
 | `REGISTRATIONS_PER_HOUR` | `5` | Sign-ups allowed per IP per hour. |
 | `SONG_CHECK_INTERVAL_DAYS` | `7` | How often each song is re-checked. |

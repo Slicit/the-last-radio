@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
  * sharing or keeping something differently, update both languages below and
  * POLICY_VERSION (here and in apps/server/src/lib/legal.ts). See CLAUDE.md.
  */
-export const POLICY_VERSION = "2026-09-26.4";
+export const POLICY_VERSION = "2026-09-26.5";
 const UPDATED = { fr: "26 septembre 2026", en: "26 September 2026" };
 
 type Legal = { policyVersion: string; controller: string | null; contact: string | null };
@@ -120,7 +120,7 @@ export function PrivacyPage() {
             <ul className="list-disc space-y-1 pl-5">
               <li>Aucune publicité, aucune mesure d'audience, aucun traceur ni cookie tiers.</li>
               <li>Aucune revente ni location de données, aucun profilage.</li>
-              <li>Pas d'historique d'écoute individuel : nous comptons les auditeurs en direct, sans conserver qui a écouté quoi.</li>
+              <li>Pas d'historique d'écoute individuel : nous comptons les auditeurs en direct, sans conserver qui a écouté quoi. Nous gardons seulement, toutes les 5 minutes, le <strong>nombre</strong> d'auditeurs de chaque station, pour les statistiques d'audience des administrateurs.</li>
               <li>Aucune donnée de paiement, aucune géolocalisation. Les photos perdent leurs métadonnées dès l'envoi.</li>
             </ul>
           </Section>
@@ -221,7 +221,7 @@ export function PrivacyPage() {
             <ul className="list-disc space-y-1 pl-5">
               <li>No advertising, no audience measurement, no trackers or third-party cookies.</li>
               <li>No selling or renting of data, no profiling.</li>
-              <li>No personal listening history: we count listeners live without keeping who listened to what.</li>
+              <li>No personal listening history: we count listeners live without keeping who listened to what. We only keep, every 5 minutes, the <strong>number</strong> of people listening to each station, for the admins' audience charts.</li>
               <li>No payment data, no geolocation. Photos lose their metadata on upload.</li>
             </ul>
           </Section>

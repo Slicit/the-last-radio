@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { db, schema } from "../db/index.js";
 import { type AppEnv, requireAdmin } from "../lib/auth.js";
@@ -17,6 +17,8 @@ const domainSchema = z
   .transform((d) => d.replace(/^\*?@/, "")) // accept "@acme.test" and "*@acme.test"
   .pipe(z.string().regex(/^(?=.{3,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/, "Use a domain like acme.test"));
 
+const MATCHES_SHOWN = 50;
+
 /** Admins: who may hear a private station. */
 export const stationAccessRoutes = new Hono<AppEnv>()
   .use(requireAdmin)
@@ -31,7 +33,25 @@ export const stationAccessRoutes = new Hono<AppEnv>()
         .orderBy(asc(users.displayName)),
       db.select({ domain: radioDomains.domain }).from(radioDomains).where(eq(radioDomains.radioId, radio.id)).orderBy(asc(radioDomains.domain)),
     ]);
-    return c.json({ isPrivate: radio.isPrivate, members, domains: domains.map((d) => d.domain), mailConfigured: mailConfigured() });
+    // Who each domain lets in, so admins see the effect of a rule at once.
+    // (Domains are letters, digits, dots and dashes: nothing LIKE would read as a wildcard.)
+    const matches = await Promise.all(
+      domains.map(async ({ domain }) => ({
+        domain,
+        people: await db
+          .select({
+            id: users.id,
+            displayName: users.displayName,
+            email: users.email,
+            verified: sql<boolean>`${users.emailVerifiedAt} is not null`,
+          })
+          .from(users)
+          .where(and(isNull(users.deletedAt), sql`lower(${users.email}) like ${"%@" + domain}`))
+          .orderBy(asc(users.displayName))
+          .limit(MATCHES_SHOWN),
+      })),
+    );
+    return c.json({ isPrivate: radio.isPrivate, members, domains: domains.map((d) => d.domain), matches, mailConfigured: mailConfigured() });
   })
   .post("/:slug/members", zValidator("json", z.object({ email: z.string().trim().toLowerCase().email() })), async (c) => {
     const radio = await svc.getRadio(c.req.param("slug"));

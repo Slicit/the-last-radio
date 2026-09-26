@@ -1,7 +1,7 @@
 import { and, eq, gt, lt } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { randomToken, sha256 } from "./tokens.js";
-import { mailConfigured, sendMail } from "./mail.js";
+import { MailRateLimited, mailConfigured, recipientLimiter, sendMail } from "./mail.js";
 
 const { emailTokens, users } = schema;
 const TTL_MS = 24 * 3600_000;
@@ -9,6 +9,9 @@ const TTL_MS = 24 * 3600_000;
 /** Emails a one-time link proving they own the address. Returns false when mail isn't set up. */
 export async function sendVerification(user: { id: string; email: string; displayName: string }, baseUrl: string) {
   if (!mailConfigured()) return false;
+  // Checked before making a link nobody will receive (sendMail checks again).
+  const wait = recipientLimiter.wait(user.email);
+  if (wait) throw new MailRateLimited(wait);
   const token = randomToken();
   await db.delete(emailTokens).where(lt(emailTokens.expiresAt, new Date()));
   await db.insert(emailTokens).values({ tokenHash: sha256(token), userId: user.id, email: user.email, expiresAt: new Date(Date.now() + TTL_MS) });

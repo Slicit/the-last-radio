@@ -1,0 +1,72 @@
+# Mail server for every Docker project on the host.
+#
+# Sending: Postfix signs each message with DKIM and delivers it straight to
+# the recipients' mail servers. It takes mail to send only from containers on
+# the external `mail` network (no login needed there) and only From the
+# domains in ALLOWED_SENDER_DOMAINS.
+#
+# Receiving: on port 25, only for the addresses listed in inbound/virtual
+# (bounces@, postmaster@, abuse@…), each forwarded to a real mailbox. Anything
+# else is refused, and nobody outside the mail network can relay.
+#
+# Settings live in .env next to this file (see .env.example); DNS records to
+# publish are in README.md.
+#
+# Install (once):
+#   docker network create --subnet 172.29.0.0/24 mail
+#   docker compose up -d
+#   docker compose exec postfix sh -c 'cat /etc/opendkim/keys/*.txt'   # DKIM record
+name: mail
+
+services:
+  postfix:
+    image: boky/postfix:latest
+    restart: unless-stopped
+    hostname: ${MAIL_HOSTNAME:?set MAIL_HOSTNAME in .env}
+    environment:
+      HOSTNAME: ${MAIL_HOSTNAME}
+      ALLOWED_SENDER_DOMAINS: ${ALLOWED_SENDER_DOMAINS:?set ALLOWED_SENDER_DOMAINS in .env}
+      # Only containers on the mail network may send; the gateway (.1) is how
+      # published-port traffic can appear, so it's never trusted.
+      POSTFIX_mynetworks: "!172.29.0.1 172.29.0.0/24"
+      DKIM_AUTOGENERATE: "true"
+      DKIM_SELECTOR: ${DKIM_SELECTOR:-mail}
+      # Send over IPv4 only, so SPF and reverse DNS need one address.
+      POSTFIX_inet_protocols: ipv4
+      # Delivery to other servers uses TLS whenever they offer it. Apps hand
+      # mail over on the private network, where a self-signed certificate
+      # would only get in the way.
+      POSTFIX_smtp_tls_security_level: may
+      POSTFIX_smtpd_tls_security_level: none
+      POSTFIX_message_size_limit: "10240000"
+      # Receiving: forward the addresses in inbound/virtual, refuse the rest.
+      POSTFIX_virtual_alias_maps: texthash:/etc/postfix/inbound/virtual
+      POSTFIX_virtual_alias_domains: ${ALLOWED_SENDER_DOMAINS}
+      POSTFIX_smtpd_client_restrictions: permit
+      POSTFIX_smtpd_sender_restrictions: permit
+      POSTFIX_smtpd_relay_restrictions: permit_mynetworks, reject_unauth_destination
+      # Apps (inbound/clients) may send only From the allowed domains; the
+      # internet may only write to the forwarded addresses.
+      POSTFIX_smtpd_restriction_classes: internal_senders
+      POSTFIX_internal_senders: check_sender_access lmdb:/etc/postfix/allowed_senders, reject
+      POSTFIX_smtpd_recipient_restrictions: reject_non_fqdn_recipient, reject_unknown_recipient_domain, check_client_access cidr:/etc/postfix/inbound/clients, reject_unauth_destination, permit
+      POSTFIX_smtpd_helo_required: "yes"
+    ports:
+      # IPv4 only: Docker's IPv6 proxy would hide the sender's real address.
+      - "0.0.0.0:25:25"
+    volumes:
+      - dkim:/etc/opendkim/keys
+      - spool:/var/spool/postfix
+      - ./inbound:/etc/postfix/inbound:ro
+    networks: [mail]
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: "3" }
+
+volumes:
+  dkim:
+  spool:
+
+networks:
+  mail:
+    external: true

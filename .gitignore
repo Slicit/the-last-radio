@@ -7,3 +7,5 @@ dist/
 backups/
 deploy/youtube-relay/relay.env
 deploy/youtube-relay/relay.key
+deploy/mail/.env
+deploy/mail/inbound/virtual

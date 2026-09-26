@@ -317,6 +317,22 @@ export const emailTokens = pgTable("email_tokens", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
 
+// ---------------------------------------------------------------- listener stats
+
+// How many people were listening to each station, every 5 minutes (admin
+// charts). Counts only: never who. Kept for good, for now.
+export const listenerSamples = pgTable(
+  "listener_samples",
+  {
+    radioId: uuid("radio_id")
+      .notNull()
+      .references(() => radios.id, { onDelete: "cascade" }),
+    at: timestamp("at", { withTimezone: true }).notNull(),
+    listeners: integer("listeners").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.radioId, t.at] }), index("listener_samples_at_idx").on(t.at)],
+);
+
 export type User = typeof users.$inferSelect;
 export type Radio = typeof radios.$inferSelect;
 export type Track = typeof tracks.$inferSelect;

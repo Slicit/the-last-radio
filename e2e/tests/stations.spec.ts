@@ -55,3 +55,17 @@ test.describe(() => {
     await expect(visitor.getByRole("link", { name: "E2E Disabled" })).toHaveCount(0);
   });
 });
+
+// specs/features/listener-stats.feature
+test.describe(() => {
+  test.use(asAdmin);
+  test("Admins see listeners over time", async ({ page }) => {
+    await page.goto("/admin");
+    const card = page.getByText("Listeners", { exact: true }).locator("xpath=ancestor::*[@data-slot='card'][1]");
+    await expect(card.getByRole("radio", { name: "7 days" })).toHaveAttribute("aria-checked", "true");
+    await expect(card.getByRole("region", { name: "All stations" })).toBeVisible();
+    await card.getByRole("radio", { name: "3 months" }).click();
+    await expect(card.getByRole("radio", { name: "3 months" })).toHaveAttribute("aria-checked", "true");
+    await expect(card.getByRole("region", { name: "All stations" })).toBeVisible();
+  });
+});

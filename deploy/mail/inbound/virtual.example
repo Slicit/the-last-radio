@@ -1,0 +1,6 @@
+# Addresses this server receives, and where each is forwarded. Copy to
+# "virtual" (not in git) and use your own domain and mailbox. The domain also
+# needs an MX record pointing at this server.
+bounces@example.com     you@example.org
+postmaster@example.com  you@example.org
+abuse@example.com       you@example.org

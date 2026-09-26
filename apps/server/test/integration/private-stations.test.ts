@@ -73,11 +73,15 @@ describe("Private stations", () => {
     const vera = { cookie: reg.headers.get("set-cookie")!.split(";")[0] } as Person;
     expect(reg.json.user.emailVerified).toBe(false);
     expect(await slugs(vera)).not.toContain(team.slug); // not confirmed yet
+    // The editor shows whom the domain matches, confirmed or not.
+    const matches = async () => (await call("GET", `/api/radios/${team.slug}/access`, { cookie: alex.cookie })).json.matches;
+    expect(await matches()).toEqual([{ domain: "acme.test", people: [{ id: expect.any(String), displayName: "Vera", email: "vera@acme.test", verified: false }] }]);
     const token = linkFor("vera@acme.test");
     expect(token).toBeTruthy();
     expect((await call("POST", "/api/auth/verify-email", { body: { token } })).status).toBe(200);
     expect(await slugs(vera)).toContain(team.slug);
     expect(await hls(team.slug, vera)).toBe(204);
+    expect((await matches())[0].people[0].verified).toBe(true);
   });
 
   it("Confirming an email", async () => {
@@ -90,10 +94,14 @@ describe("Private stations", () => {
     const kimToken = linkFor(kim.email)!;
     await db.update(schema.users).set({ email: "kim.new@radio.test" }).where(eq(schema.users.id, kim.user.id));
     expect((await call("POST", "/api/auth/verify-email", { body: { token: kimToken } })).status).toBe(400);
-    // Resend, rate limited to 3 an hour.
+    // At most 3 emails to one address (the sign-up's counts), then 30 minutes' rest.
     const lee = await register("Lee");
-    for (let i = 0; i < 3; i++) expect((await call("POST", "/api/me/verify-email", { cookie: lee.cookie, origin: ORIGIN })).status).toBe(200);
-    expect((await call("POST", "/api/me/verify-email", { cookie: lee.cookie, origin: ORIGIN })).status).toBe(429);
+    for (let i = 0; i < 2; i++) expect((await call("POST", "/api/me/verify-email", { cookie: lee.cookie, origin: ORIGIN })).status).toBe(200);
+    const blocked = await call("POST", "/api/me/verify-email", { cookie: lee.cookie, origin: ORIGIN });
+    expect(blocked.status).toBe(429);
+    expect(blocked.json.error).toMatch(/^We've sent several emails to this address already\. Try again in (29|30) min\.$/);
+    expect(Number(blocked.headers.get("retry-after"))).toBeGreaterThan(29 * 60);
+    expect(capturedMail.filter((m) => m.to === lee.email)).toHaveLength(3);
     // Admins can vouch for an address.
     await call("PATCH", `/api/users/${lee.user.id}`, { cookie: alex.cookie, body: { emailVerified: true } });
     expect((await call("GET", "/api/auth/me", { cookie: lee.cookie })).json.user.emailVerified).toBe(true);

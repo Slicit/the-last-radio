@@ -1,0 +1,4 @@
+# Clients held to the internal sender rules (apps on the mail network).
+# First match wins: the gateway is how outside traffic can appear, so skip it.
+172.29.0.1/32   DUNNO
+172.29.0.0/24   internal_senders

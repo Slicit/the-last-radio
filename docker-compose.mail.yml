@@ -1,0 +1,9 @@
+# Send email through the host's shared mail server (deploy/mail) instead of an
+# outside SMTP service. Add to COMPOSE_FILE and set SMTP_URL=smtp://postfix:587.
+services:
+  api:
+    networks: [net, mail]
+
+networks:
+  mail:
+    external: true

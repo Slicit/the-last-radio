@@ -12,6 +12,7 @@ import { OnAir } from "@/components/on-air";
 import { Pager } from "@/components/pager";
 import { FeedbackAdmin } from "@/components/feedback-admin";
 import { StationImportDialog } from "@/components/station-import-dialog";
+import { ListenerStatsAdmin } from "@/components/listener-stats";
 import { useMe } from "@/hooks/use-auth";
 import { useRadios, useStream } from "@/hooks/use-radio";
 import { api, type AdminUser, type Role } from "@/lib/api";
@@ -25,6 +26,7 @@ export function AdminPage() {
     <div className="space-y-8">
       <h1 className="text-3xl font-bold tracking-tight">Admin</h1>
       <FeedbackAdmin />
+      <ListenerStatsAdmin />
       <RadiosAdmin />
       <UsersAdmin selfId={user.id} />
     </div>

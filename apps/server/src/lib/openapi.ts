@@ -6,6 +6,7 @@ import { createRadioBody, updateRadioBody, pushBody } from "../routes/radios.js"
 import { postBody as feedbackBody } from "../routes/feedback.js";
 import { registerBody as oauthRegisterBody, keyBody } from "../routes/oauth.js";
 import { stationFile } from "./station-transfer.js";
+import { RANGES } from "./listener-stats.js";
 
 /**
  * The REST API as OpenAPI 3.1, served at /api/openapi.json. Request bodies
@@ -151,7 +152,7 @@ const ops: Record<string, Op> = {
     description: "Picking a result and posting its sourceUrl to /queue adds it instantly.",
   },
 
-  "GET /api/radios/{slug}/access": { summary: "Who may hear a private station", tag: "Private stations", auth: "admin", ok: obj({ isPrivate: bool, members: { type: "array", items: obj({ id: str, displayName: str, email: str, addedAt: time }) }, domains: { type: "array", items: str }, mailConfigured: bool }) },
+  "GET /api/radios/{slug}/access": { summary: "Who may hear a private station", tag: "Private stations", auth: "admin", ok: obj({ isPrivate: bool, members: { type: "array", items: obj({ id: str, displayName: str, email: str, addedAt: time }) }, domains: { type: "array", items: str }, matches: { type: "array", items: obj({ domain: str, people: { type: "array", items: obj({ id: str, displayName: str, email: str, verified: bool }) } }) }, mailConfigured: bool }) },
   "POST /api/radios/{slug}/members": { summary: "Add someone by email", tag: "Private stations", auth: "admin", body: obj({ email: { ...str, format: "email" } }), okStatus: 201, ok: obj({ ok: bool }) },
   "DELETE /api/radios/{slug}/members/{userId}": { summary: "Remove someone", tag: "Private stations", auth: "admin", ok: obj({ ok: bool }) },
   "POST /api/radios/{slug}/domains": { summary: "Allow a verified email domain", tag: "Private stations", auth: "admin", body: obj({ domain: str }), okStatus: 201, ok: obj({ ok: bool, domain: str }) },
@@ -172,6 +173,7 @@ const ops: Record<string, Op> = {
   "PATCH /api/admin/feedback/{id}": { summary: "Mark read / archive", tag: "Feedback", auth: "admin", body: obj({ read: bool, archived: bool }, []), ok: obj({ ok: bool }) },
   "POST /api/admin/feedback/{id}/vote": { summary: "Vote on its priority", tag: "Feedback", auth: "admin", body: obj({ value: { enum: [1, -1, 0] } }), ok: obj({ score: int, myVote: int }) },
 
+  "GET /api/admin/listeners": { summary: "Listeners over time: all stations and each, average and peak per bucket", tag: "Admin", auth: "admin", query: { range: { enum: Object.keys(RANGES), default: "7d", description: "24h (5-min buckets), 7d (30 min), 30d (2 h) or 90d (6 h)" } }, ok: obj({ range: str, from: time, to: time, bucketSec: int, all: obj({ points: { type: "array", items: obj({ t: time, avg: { type: "number" }, peak: int }) }, peak: int, peakAt: nullable(time), avg: { type: "number" } }), stations: { type: "array", items: { allOf: [obj({ station: obj({ id: str, slug: str, name: str, isPrivate: bool }) }), obj({ points: { type: "array", items: obj({ t: time, avg: { type: "number" }, peak: int }) }, peak: int, peakAt: nullable(time), avg: { type: "number" } })] } } }), description: "Counted every 5 minutes and kept for good; charts show up to the last 3 months." },
   "GET /api/users": { summary: "Everyone, with activity", tag: "Admin", auth: "admin", query: paging, ok: page(ref("User")) },
   "PATCH /api/users/{id}": { summary: "Change someone's role, or vouch for their email", tag: "Admin", auth: "admin", body: obj({ role: { enum: ["admin", "player"] }, emailVerified: bool }, []), ok: { type: "object" } },
 

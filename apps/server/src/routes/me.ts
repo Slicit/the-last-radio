@@ -7,6 +7,7 @@ import { db, schema } from "../db/index.js";
 import { type AppEnv, endSession, requireSession, toPublicUser, verifyPassword } from "../lib/auth.js";
 import { POLICY_VERSION } from "../lib/legal.js";
 import { sendVerification } from "../lib/verify-email.js";
+import { MailRateLimited } from "../lib/mail.js";
 import { publicUrl } from "../lib/public-url.js";
 import { AVATAR_MAX_BYTES, processAvatar } from "../lib/avatar.js";
 import { rateLimit } from "../lib/rate-limit.js";
@@ -73,10 +74,17 @@ export const meRoutes = new Hono<AppEnv>()
     return c.json({ user: toPublicUser(u) });
   })
 
-  .post("/verify-email", perUser(3, 3600_000, "Too many emails sent."), async (c) => {
+  // Limited per address by the mailer: 3 emails, then 30 minutes' rest.
+  .post("/verify-email", async (c) => {
     const me = (await db.query.users.findFirst({ where: eq(users.id, c.get("user")!.id) }))!;
     if (me.emailVerifiedAt) return c.json({ ok: true, alreadyVerified: true });
-    const sent = await sendVerification(me, publicUrl(c));
+    const sent = await sendVerification(me, publicUrl(c)).catch((e) => {
+      if (e instanceof MailRateLimited) {
+        c.header("Retry-After", String(e.retryAfterSec));
+        throw new HTTPException(429, { message: e.message });
+      }
+      throw e;
+    });
     if (!sent) throw new HTTPException(503, { message: "Email isn't set up on this radio yet. Ask an admin to verify you." });
     return c.json({ ok: true });
   })

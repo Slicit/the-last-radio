@@ -23,10 +23,22 @@ Feature: Private stations
     Then "Team Room" appears for Vera
     But until she confirms, it doesn't: anyone could type an address they don't own
 
+  @integration @e2e
+  Scenario: Managing who may listen from the station editor
+    Given Alex edits the private station "Team Room"
+    When Alex types a domain (with or without the @) under "Email domains" and clicks Add or presses Enter
+    Then "@acme.test added" shows, and the domain is listed with everyone at that domain who has an account
+    And people not confirmed yet are marked so, with "Mark confirmed" for when email isn't set up
+    And the rest of the station form is neither saved nor lost
+    When Alex removes the domain, its people lose access (unless added by name)
+    # Regression 2026-09-26: the domain's Add button was a form inside the editor's form and saved the station instead.
+
   @integration
   Scenario: Confirming an email
     Then signing up sends a confirmation link, valid once for 24 hours
-    And "Send confirmation email" in the profile sends a new one (3 an hour at most)
+    And "Send confirmation email" in the profile sends a new one
+    And no address gets more than 3 emails (sign-up included): the next is refused with
+      "We've sent several emails to this address already. Try again in 30 min.", and it unlocks 30 minutes after the last
     And a link stops working if the account's email changed since
     And without email set up (SMTP_URL), admins can "Mark verified" by hand, and the station editor says so
 

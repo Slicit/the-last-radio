@@ -150,6 +150,8 @@ export type StationAccess = {
   isPrivate: boolean;
   members: { id: string; displayName: string; email: string; addedAt: string }[];
   domains: string[];
+  /** Everyone each domain matches; only verified addresses get in. */
+  matches: { domain: string; people: { id: string; displayName: string; email: string; verified: boolean }[] }[];
   mailConfigured: boolean;
 };
 
