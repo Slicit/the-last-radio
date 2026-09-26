@@ -1,13 +1,24 @@
 name: lastradio
 
+# Logs contain IP addresses (nginx access logs): keep at most ~30 MB per
+# service, rotated, as stated in the privacy notice.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 # Everything lives on a private network; only the web UI (and postgres, for
 # debugging) is published on the host. Container names, volumes and the
-# network are all prefixed so this stack never collides with neighbours.
+# network are all prefixed with $STACK (default "lastradio") so this stack
+# never collides with neighbours, and a test copy can run beside it:
+#   STACK=lastradio-test WEB_PORT=28800 PG_PORT=28832 docker compose -p lastradio-test up -d
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: lastradio-postgres
+    container_name: ${STACK:-lastradio}-postgres
+    logging: *logging
     environment:
       POSTGRES_DB: lastradio
       POSTGRES_USER: lastradio
@@ -26,7 +37,8 @@ services:
 
   mediamtx:
     image: bluenviron/mediamtx:1.19.1
-    container_name: lastradio-mediamtx
+    container_name: ${STACK:-lastradio}-mediamtx
+    logging: *logging
     volumes:
       - ./infra/mediamtx.yml:/mediamtx.yml:ro
     restart: unless-stopped
@@ -36,14 +48,23 @@ services:
     build:
       context: .
       dockerfile: apps/server/Dockerfile
-    image: lastradio-server
-    container_name: lastradio-api
+    # Built locally by default; set SERVER_IMAGE to use a released image
+    # (e.g. ghcr.io/slicit/the-last-radio-server:1.2.3) with scripts/deploy.sh --pull.
+    image: ${SERVER_IMAGE:-lastradio-server}
+    container_name: ${STACK:-lastradio}-api
+    logging: *logging
     command: ["node", "dist/api.js"]
     environment: &server-env
       DATABASE_URL: postgres://lastradio:${POSTGRES_PASSWORD:-change-me}@postgres:5432/lastradio
       MEDIAMTX_API: http://mediamtx:9997
       MEDIAMTX_RTSP: rtsp://mediamtx:8554
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      PRIVACY_CONTROLLER: ${PRIVACY_CONTROLLER:-}
+      PRIVACY_CONTACT: ${PRIVACY_CONTACT:-}
+      REGISTRATIONS_PER_HOUR: ${REGISTRATIONS_PER_HOUR:-5}
+      SMTP_URL: ${SMTP_URL:-}
+      MAIL_FROM: ${MAIL_FROM:-}
       CACHE_DIR: /data/cache
     depends_on:
       postgres: { condition: service_healthy }
@@ -51,8 +72,9 @@ services:
     networks: [net]
 
   broadcaster:
-    image: lastradio-server
-    container_name: lastradio-broadcaster
+    image: ${SERVER_IMAGE:-lastradio-server}
+    container_name: ${STACK:-lastradio}-broadcaster
+    logging: *logging
     command: ["node", "dist/broadcaster.js"]
     # On restart the broadcaster lets songs on air finish before exiting.
     stop_grace_period: 25m
@@ -70,8 +92,9 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    image: lastradio-web
-    container_name: lastradio-web
+    image: ${WEB_IMAGE:-lastradio-web}
+    container_name: ${STACK:-lastradio}-web
+    logging: *logging
     ports:
       - "${WEB_PORT:-28700}:80"
     depends_on: [api, mediamtx]
@@ -80,10 +103,10 @@ services:
 
 volumes:
   pgdata:
-    name: lastradio-pgdata
+    name: ${STACK:-lastradio}-pgdata
   audiocache:
-    name: lastradio-audiocache
+    name: ${STACK:-lastradio}-audiocache
 
 networks:
   net:
-    name: lastradio-net
+    name: ${STACK:-lastradio}-net

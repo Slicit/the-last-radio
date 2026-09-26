@@ -26,6 +26,8 @@ export type SongRecord = {
   score: number;
   /** Whether Alfred may pick it (duration and recency aside). */
   alfredOk: boolean;
+  /** The source is gone (song health check); kept for history. */
+  unavailable: boolean;
 };
 
 /**
@@ -50,10 +52,10 @@ const ORDER: Record<SongSort, ReturnType<typeof sql>> = {
 };
 
 /** Every song this station has aired, with its record. */
-export async function songRecords(radioId: string, sort: SongSort = "played", limit = 200): Promise<SongRecord[]> {
+export async function songRecords(radioId: string, sort: SongSort = "played", limit = 200, offset = 0): Promise<SongRecord[]> {
   const rows = await db.execute<Record<string, unknown>>(sql`
     select
-      t.id, t.title, t.artist, t.duration_sec, t.thumbnail_url, t.source_url, t.source_key,
+      t.id, t.title, t.artist, t.duration_sec, t.thumbnail_url, t.source_url, t.source_key, t.unavailable_at,
       count(*) filter (where qi.status = 'played')::int as plays,
       count(*) filter (where qi.status = 'played' and not qi.is_fill)::int as plays_by_people,
       count(*) filter (where qi.status = 'played' and qi.is_fill)::int as plays_by_alfred,
@@ -71,8 +73,8 @@ export async function songRecords(radioId: string, sort: SongSort = "played", li
     where qi.radio_id = ${radioId} and qi.status <> 'removed'
     group by t.id
     having count(*) filter (where qi.started_at is not null) > 0
-    order by ${ORDER[sort]}
-    limit ${limit}
+    order by ${ORDER[sort]}, t.id
+    limit ${limit} offset ${offset}
   `);
   return rows.map((r) => {
     const score = Number(r.score);
@@ -97,7 +99,16 @@ export async function songRecords(radioId: string, sort: SongSort = "played", li
       lastPlayedAt: r.last_played_at ? new Date(r.last_played_at as string).toISOString() : null,
       lastOutcome,
       score: Math.round(score * 10) / 10,
-      alfredOk: score > 0 && lastOutcome !== "votes" && lastOutcome !== "admin",
+      unavailable: !!r.unavailable_at,
+      alfredOk: !r.unavailable_at && score > 0 && lastOutcome !== "votes" && lastOutcome !== "admin",
     };
   });
+}
+
+/** How many different songs the station has aired (for paging). */
+export async function songCount(radioId: string): Promise<number> {
+  const [row] = await db.execute<{ n: number }>(sql`
+    select count(distinct track_id)::int as n from queue_items
+    where radio_id = ${radioId} and status <> 'removed' and started_at is not null`);
+  return Number(row?.n ?? 0);
 }

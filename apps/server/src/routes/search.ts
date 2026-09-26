@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { HTTPException } from "hono/http-exception";
-import { type AppEnv, requireUser } from "../lib/auth.js";
-import { searchYoutube } from "../lib/search.js";
+import { type AppEnv, requireScope, requireUser } from "../lib/auth.js";
+import { SEARCH_SOURCES, searchSongs } from "../lib/search.js";
 import { AbortedError, ProbeError } from "../lib/ytdlp.js";
 import { zValidator } from "../lib/validate.js";
 
@@ -22,13 +22,15 @@ function allow(userId: string): boolean {
 export const searchRoutes = new Hono<AppEnv>().get(
   "/",
   requireUser,
-  zValidator("query", z.object({ q: z.string().trim().min(2).max(120) })),
+  requireScope("radio:read"),
+  zValidator("query", z.object({ q: z.string().trim().min(2).max(120), source: z.enum(SEARCH_SOURCES).default("youtube") })),
   async (c) => {
     if (!allow(c.get("user")!.id)) {
       throw new HTTPException(429, { message: "Searching a bit fast, give it a second" });
     }
     try {
-      const results = await searchYoutube(c.req.valid("query").q, c.req.raw.signal);
+      const { q, source } = c.req.valid("query");
+      const results = await searchSongs(q, source, c.req.raw.signal);
       return c.json({ results });
     } catch (e) {
       if (e instanceof AbortedError) return c.body(null, 204);

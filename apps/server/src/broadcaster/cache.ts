@@ -40,7 +40,7 @@ export class AudioCache {
         return existing;
       }
       await runYtdlp(
-        ["-f", "bestaudio/best", "-o", path.join(this.dir, `${track.id}.%(ext)s`), track.sourceUrl],
+        ["-f", "bestaudio/best", "-o", path.join(this.dir, `${track.id}.%(ext)s`), "--", track.sourceUrl],
         10 * 60_000,
       );
       const file = await this.find(track.id);

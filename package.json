@@ -1,9 +1,13 @@
 {
   "name": "the-last-radio",
   "private": true,
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*",
+    "e2e"
+  ],
   "scripts": {
     "build": "npm run build --workspaces",
-    "typecheck": "npm run typecheck --workspaces"
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "scripts/test.sh"
   }
 }

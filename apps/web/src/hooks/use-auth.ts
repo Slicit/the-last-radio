@@ -24,7 +24,7 @@ export function useAuthActions() {
       onSuccess: onAuthed,
     }),
     register: useMutation({
-      mutationFn: (body: { email: string; password: string; displayName: string }) =>
+      mutationFn: (body: { email: string; password: string; displayName: string; acceptPrivacy: boolean }) =>
         api.post<{ user: User }>("/auth/register", body),
       onSuccess: onAuthed,
     }),

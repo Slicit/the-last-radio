@@ -1,5 +1,16 @@
 export type Role = "admin" | "player";
-export type User = { id: string; email: string; displayName: string; role: Role };
+export type Theme = "night" | "light" | "vintage";
+export type User = {
+  id: string;
+  email: string;
+  displayName: string;
+  role: Role;
+  theme: Theme;
+  avatarUrl: string | null;
+  /** They haven't acknowledged the current privacy notice yet. */
+  privacyAckRequired: boolean;
+  emailVerified: boolean;
+};
 
 export type Track = {
   id: string;
@@ -9,9 +20,12 @@ export type Track = {
   thumbnailUrl: string | null;
   sourceUrl: string;
   sourceKey: string;
+  /** The source is gone (weekly song check); kept for history. */
+  unavailable?: boolean;
 };
 
-export type SearchResult = Omit<Track, "id"> & { videoId: string; views: number | null };
+export type SearchSource = "youtube" | "soundcloud";
+export type SearchResult = Omit<Track, "id"> & { videoId: string; views: number | null; source: SearchSource };
 
 export type QueueItem = {
   id: string;
@@ -32,6 +46,7 @@ export type Radio = {
   name: string;
   description: string;
   isActive: boolean;
+  isPrivate: boolean;
   rateLimitCount: number;
   rateLimitWindowSec: number;
   maxTrackSec: number;
@@ -79,7 +94,12 @@ export type RadioDetail = {
   radio: Radio;
   nowPlaying: QueueItem | null;
   skip: SkipState | null;
+  /** First page only; page through the rest with /radios/:slug/queue. */
   queue: QueueItem[];
+  queueTotal: number;
+  queueDurationSec: number;
+  /** Every song lined up, for "already in line" checks. */
+  queuedKeys: string[];
   quota: Quota | null;
   serverTime: string;
 };
@@ -105,6 +125,7 @@ export type SongRecord = {
   lastOutcome: string | null;
   score: number;
   alfredOk: boolean;
+  unavailable: boolean;
 };
 
 export type StreamStatus = {
@@ -118,6 +139,15 @@ export type StreamStatus = {
 
 export type AdminUser = User & { createdAt: string; pushes: number; plays: number };
 
+export type StationAccess = {
+  isPrivate: boolean;
+  members: { id: string; displayName: string; email: string; addedAt: string }[];
+  domains: string[];
+  mailConfigured: boolean;
+};
+
+export type Page<T> = { items: T[]; total: number; page: number; pageSize: number };
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -128,12 +158,13 @@ export class ApiError extends Error {
 }
 
 async function request<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  const isForm = body instanceof FormData;
   const res = await fetch(`/api${path}`, {
     method,
     signal,
     credentials: "same-origin",
-    headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    headers: body !== undefined && !isForm ? { "Content-Type": "application/json" } : undefined,
+    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(data.error ?? `Request failed (${res.status})`, res.status);
@@ -145,4 +176,7 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {}),
   patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, body),
   del: <T>(path: string) => request<T>("DELETE", path),
+  put: <T>(path: string, body: unknown) => request<T>("PUT", path, body),
+  /** DELETE with a body (e.g. a password confirmation). */
+  del_: <T>(path: string, body: unknown) => request<T>("DELETE", path, body),
 };

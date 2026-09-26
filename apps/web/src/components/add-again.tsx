@@ -1,4 +1,4 @@
-import { ListPlus, Loader2 } from "lucide-react";
+import { ListPlus, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAddSong } from "@/hooks/use-add-song";
 
@@ -13,15 +13,31 @@ export type Lineup = {
   blockedReason: string | null;
 };
 
+/** Asks the "Add a song" search box to look this title up. */
+export function findSong(title: string) {
+  // Drop "(Official Video)", "[4K]" and the like: they narrow the search for no reason.
+  const q = title.replace(/\([^)]*\)|\[[^\]]*\]/g, " ").replace(/\s+/g, " ").trim();
+  window.dispatchEvent(new CustomEvent("lr:find-song", { detail: q }));
+}
+
 export function AddAgain({
   lineup,
   track,
 }: {
   lineup: Lineup;
-  track: { id: string; sourceKey: string; title: string; durationSec: number | null };
+  track: { id: string; sourceKey: string; title: string; durationSec: number | null; unavailable?: boolean };
 }) {
   const add = useAddSong(lineup.slug);
   if (!lineup.signedIn) return null;
+
+  // The source is gone: offer to find another upload of it by name.
+  if (track.unavailable) {
+    return (
+      <Button variant="ghost" size="sm" className="shrink-0" onClick={() => findSong(track.title)} title="This song's source is gone: search for another copy">
+        <Search /> Find it
+      </Button>
+    );
+  }
 
   const status =
     track.sourceKey === lineup.onAirKey

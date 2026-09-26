@@ -12,4 +12,9 @@ export const env = {
   COOKIE_SECURE: process.env.COOKIE_SECURE === "true",
   CACHE_DIR: process.env.CACHE_DIR ?? "/tmp/lastradio-cache",
   CACHE_MAX_BYTES: Number(process.env.CACHE_MAX_BYTES ?? 2 * 1024 ** 3),
+  // Public origin for OAuth/MCP metadata; derived from the request when unset.
+  PUBLIC_URL: process.env.PUBLIC_URL ?? "",
+  // Shown in the privacy notice: who runs this radio and how to reach them.
+  PRIVACY_CONTROLLER: process.env.PRIVACY_CONTROLLER ?? "",
+  PRIVACY_CONTACT: process.env.PRIVACY_CONTACT ?? "",
 };

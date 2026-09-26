@@ -6,11 +6,11 @@ export function OnAir({ live, closed, className }: { live: boolean; closed?: boo
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold tracking-widest uppercase",
-        live ? "bg-red-500/15 text-red-500" : "bg-muted text-muted-foreground",
+        live ? "bg-brand/15 text-brand" : "bg-muted text-muted-foreground",
         className,
       )}
     >
-      <span className={cn("size-1.5 rounded-full", live ? "animate-pulse bg-red-500" : "bg-muted-foreground")} />
+      <span className={cn("size-1.5 rounded-full", live ? "animate-pulse bg-brand" : "bg-muted-foreground")} />
       {live ? "On air" : closed ? "Closed" : "Off air"}
     </span>
   );

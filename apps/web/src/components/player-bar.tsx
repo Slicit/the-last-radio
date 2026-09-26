@@ -21,7 +21,9 @@ export function PlayerBar() {
         ? (closedLabel(data?.radio.hours ?? { open: true, next: null }) ?? "Stream offline, retrying…")
         : np
           ? (np.track.artist ?? `added by ${adderName(np)}`)
-          : "Dead air. Add a song!";
+          : data && data.queueTotal > 0
+            ? "Changing songs…"
+            : "Dead air. Add a song!";
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">

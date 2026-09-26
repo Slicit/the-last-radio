@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Headphones, ListMusic, Play } from "lucide-react";
+import { Headphones, ListMusic, Lock, Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,7 +52,8 @@ export function HomePage() {
               <CardContent className="space-y-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <Link to={`/r/${r.slug}`} className="text-lg font-semibold after:absolute after:inset-0">
+                    <Link to={`/r/${r.slug}`} className="inline-flex items-center gap-1.5 text-lg font-semibold after:absolute after:inset-0">
+                      {r.isPrivate && <Lock className="size-4" aria-label="Private" />}
                       {r.name}
                     </Link>
                     <p className="line-clamp-1 text-sm text-muted-foreground">{r.description || `/${r.slug}`}</p>

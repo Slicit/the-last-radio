@@ -2,13 +2,16 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/manrope";
+@import "@fontsource-variable/fraunces";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
     --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-sans: var(--app-font);
     --color-sidebar-ring: var(--sidebar-ring);
+    --color-brand: var(--brand);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-accent: var(--sidebar-accent);
@@ -49,6 +52,8 @@
 }
 
 :root {
+    --app-font: 'Geist Variable', sans-serif;
+    --brand: oklch(0.637 0.237 25.331);
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);
@@ -127,4 +132,79 @@
   html {
     @apply font-sans;
     }
+}
+/*
+ * Light: after Pennylane's palette and type. Teal ink on warm white, mint
+ * surfaces, green for anything live, Manrope, tighter corners. Borders,
+ * inputs and secondary surfaces are kept dark enough that outline and
+ * secondary buttons read clearly on white cards.
+ */
+:root[data-theme="light"] {
+    --app-font: 'Manrope Variable', sans-serif;
+    --brand: #00a04a;
+    --radius: 0.375rem;
+    --background: #f3eee9;
+    --foreground: #002e2e;
+    --card: #ffffff;
+    --card-foreground: #002e2e;
+    --popover: #ffffff;
+    --popover-foreground: #002e2e;
+    --primary: #003d3d;
+    --primary-foreground: #00f872;
+    --secondary: #c2efdf;
+    --secondary-foreground: #002e2e;
+    --muted: #e4ebe8;
+    --muted-foreground: #335f5f;
+    --accent: #cdf3e6;
+    --accent-foreground: #002e2e;
+    --destructive: #c2410c;
+    --border: #b3c8c2;
+    --input: #9fb8b1;
+    --ring: #00a04a;
+    --chart-1: #00a04a;
+    --chart-2: #2f8f7e;
+    --chart-3: #003d3d;
+    --chart-4: #e0a040;
+    --chart-5: #006666;
+    color-scheme: light;
+}
+
+/*
+ * Vintage: an old wooden radio. Sepia paper, walnut ink and buttons with
+ * cream lettering, and the amber glow of a lit dial for anything live.
+ */
+:root[data-theme="vintage"] {
+    --app-font: 'Fraunces Variable', Georgia, serif;
+    --brand: #c2610c;
+    --radius: 0.25rem;
+    --background: #efe3cb;
+    --foreground: #2e1f12;
+    --card: #f8efdd;
+    --card-foreground: #2e1f12;
+    --popover: #fbf4e6;
+    --popover-foreground: #2e1f12;
+    --primary: #5a3a22;
+    --primary-foreground: #fbeed2;
+    --secondary: #e2cda6;
+    --secondary-foreground: #2e1f12;
+    --muted: #e6d6b8;
+    --muted-foreground: #6b4f35;
+    --accent: #ead9b8;
+    --accent-foreground: #2e1f12;
+    --destructive: #a3341c;
+    --border: #c4a97f;
+    --input: #b49870;
+    --ring: #c2610c;
+    --chart-1: #c2610c;
+    --chart-2: #5a3a22;
+    --chart-3: #8a6a3f;
+    --chart-4: #d9a74a;
+    --chart-5: #3f5a4a;
+    color-scheme: light;
+}
+
+/* Aged paper: a soft vignette behind everything. */
+:root[data-theme="vintage"] body {
+    background-image: radial-gradient(ellipse at center, transparent 55%, rgb(90 58 34 / 0.12) 100%);
+    background-attachment: fixed;
 }

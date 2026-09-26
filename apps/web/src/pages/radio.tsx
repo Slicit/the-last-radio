@@ -1,8 +1,8 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Bot, Clock, ExternalLink, Headphones, Loader2, Moon, Pause, Play, Trash2 } from "lucide-react";
+import { Bot, Clock, ExternalLink, Headphones, Loader2, Lock, Moon, Pause, Play, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,8 +18,10 @@ import { SongsList } from "@/components/songs-list";
 import { OnAir } from "@/components/on-air";
 import { useMe } from "@/hooks/use-auth";
 import { usePlayer } from "@/hooks/use-player";
-import { useElapsed, useHistory, useNow, useRadio, useStats, useStream } from "@/hooks/use-radio";
+import { useElapsed, useHistory, useNow, useQueuePage, useRadio, useStats, useStream } from "@/hooks/use-radio";
+import { Pager } from "@/components/pager";
 import { api, type QueueItem, type Quota, type RadioStats, type SkipState, type User } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { adderName, ago, closedLabel, duration, hours, hoursSummary, nextOpening, windowLabel } from "@/lib/format";
 
 export function RadioPage() {
@@ -48,7 +50,7 @@ export function RadioPage() {
     slug: radio.slug,
     signedIn: !!user,
     onAirKey: data.nowPlaying?.track.sourceKey ?? null,
-    queuedKeys: new Set(data.queue.map((q) => q.track.sourceKey)),
+    queuedKeys: new Set(data.queuedKeys),
     maxTrackSec: radio.maxTrackSec,
     blockedReason: blocked
       ? `You can add another song in ~${Math.max(1, Math.ceil((Date.parse(quota.nextSlotAt ?? "") - Date.now()) / 60_000) || 1)} min`
@@ -59,7 +61,10 @@ export function RadioPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">{radio.name}</h1>
+            <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
+              {radio.isPrivate && <Lock className="size-6" aria-label="Private station" />}
+              {radio.name}
+            </h1>
             <OnAir live={!!stream?.live} closed={!radio.hours.open} />
             {!radio.isActive && <Badge variant="outline">disabled</Badge>}
           </div>
@@ -103,6 +108,7 @@ export function RadioPage() {
           slug={radio.slug}
           name={radio.name}
           item={data.nowPlaying}
+          upNext={data.queue[0] ?? null}
           clockSkewMs={data.clockSkewMs}
           closed={!radio.hours.open}
           isAdmin={user?.role === "admin"}
@@ -114,7 +120,7 @@ export function RadioPage() {
           user={user}
           quota={data.quota}
           maxTrackSec={radio.maxTrackSec}
-          queue={data.queue}
+          queuedKeys={data.queuedKeys}
           nowPlaying={data.nowPlaying}
           opensLabel={radio.hours.next && !radio.hours.open ? nextOpening(radio.hours.next) : null}
         />
@@ -122,13 +128,13 @@ export function RadioPage() {
 
       <Tabs defaultValue="queue">
         <TabsList>
-          <TabsTrigger value="queue">Up next ({data.queue.length})</TabsTrigger>
+          <TabsTrigger value="queue">Up next ({data.queueTotal})</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="songs">Songs</TabsTrigger>
           <TabsTrigger value="players">Top players</TabsTrigger>
         </TabsList>
         <TabsContent value="queue">
-          <QueueList slug={radio.slug} items={data.queue} user={user} />
+          <QueueList slug={radio.slug} user={user} />
         </TabsContent>
         <TabsContent value="history">
           <HistoryList slug={radio.slug} lineup={lineup} />
@@ -150,6 +156,7 @@ function NowPlaying({
   slug,
   name,
   item,
+  upNext,
   clockSkewMs,
   closed,
   isAdmin,
@@ -159,6 +166,8 @@ function NowPlaying({
   slug: string;
   name: string;
   item: QueueItem | null;
+  /** Shown while the broadcaster switches songs (a skip, a song ending). */
+  upNext: QueueItem | null;
   clockSkewMs: number;
   closed: boolean;
   isAdmin: boolean;
@@ -170,17 +179,25 @@ function NowPlaying({
   const listening = tunedHere && (player.status === "playing" || player.status === "connecting");
   const elapsed = useElapsed(item?.startedAt, clockSkewMs, listening ? player.latency : 0);
   const total = item?.track.durationSec ?? null;
+  // Between two songs (after a skip, say) something is still lined up: that's not dead air.
+  const changing = !item && !closed && !!upNext;
 
 
   return (
     <Card>
       <CardContent className="flex flex-col gap-6 sm:flex-row">
-        <TrackArt src={item?.track.thumbnailUrl} className="aspect-square w-full sm:w-48" />
+        <TrackArt
+          src={item?.track.thumbnailUrl ?? (changing ? upNext?.track.thumbnailUrl : null)}
+          className={cn("aspect-square w-full sm:w-48", changing && "opacity-50")}
+        />
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-4">
           <div className="space-y-1">
-            <div className="text-xs font-medium tracking-widest text-muted-foreground uppercase">Now playing</div>
-            <div className="text-2xl leading-tight font-semibold break-words">
-              {item?.track.title ?? (closed ? "Closed for now" : "Dead air")}
+            <div className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
+              {changing ? "Up next" : "Now playing"}
+            </div>
+            <div className="flex items-center gap-2 text-2xl leading-tight font-semibold break-words">
+              {changing && <Loader2 className="size-5 shrink-0 animate-spin text-muted-foreground" />}
+              {item?.track.title ?? (closed ? "Closed for now" : changing ? upNext!.track.title : "Dead air")}
             </div>
             <div className="text-muted-foreground">
               {item ? (
@@ -188,8 +205,12 @@ function NowPlaying({
                   {item.track.artist && <>{item.track.artist} · </>}
                   added by <span className="text-foreground">{adderName(item)}</span>
                 </>
+              ) : closed ? (
+                "Nothing playing until the station opens."
+              ) : changing ? (
+                "Coming up in a moment…"
               ) : (
-                closed ? "Nothing playing until the station opens." : "The playlist is empty. Add a song!"
+                "The playlist is empty. Add a song!"
               )}
             </div>
           </div>
@@ -254,7 +275,7 @@ function AddSongCard({
   user,
   quota,
   maxTrackSec,
-  queue,
+  queuedKeys,
   nowPlaying,
   opensLabel,
 }: {
@@ -262,7 +283,7 @@ function AddSongCard({
   user: User | null;
   quota: Quota | null;
   maxTrackSec: number;
-  queue: QueueItem[];
+  queuedKeys: string[];
   nowPlaying: QueueItem | null;
   /** Set while the station is closed: when added songs will start playing. */
   opensLabel: string | null;
@@ -283,7 +304,8 @@ function AddSongCard({
       <CardHeader>
         <CardTitle>Add a song</CardTitle>
         <CardDescription>
-          Search by artist or title, or paste a link. Up to {Math.round(maxTrackSec / 60)} min
+          Search by artist or title on YouTube or SoundCloud, or paste a link from YouTube, SoundCloud, Bandcamp,
+          Mixcloud and more. Up to {Math.round(maxTrackSec / 60)} min
           {quota && !quota.unlimited && <>, {quota.limit} songs every {windowLabel(quota.windowSec)}</>}.
           {opensLabel && <> Songs you add now play when the station opens {opensLabel}.</>}
         </CardDescription>
@@ -294,7 +316,7 @@ function AddSongCard({
             slug={slug}
             maxTrackSec={maxTrackSec}
             quota={quota}
-            queue={queue}
+            queuedKeys={queuedKeys}
             nowPlaying={nowPlaying}
             waitLabel={waitLabel}
           />
@@ -333,6 +355,7 @@ function Row({ item, right }: { item: QueueItem; right?: ReactNode }) {
           {item.track.title}
         </a>
         <div className="truncate text-xs text-muted-foreground">
+          {item.track.unavailable && <span className="text-destructive">No longer available · </span>}
           {item.track.artist && <>{item.track.artist} · </>}
           {item.isFill ? <AlfredTag /> : adderName(item)}
         </div>
@@ -347,15 +370,22 @@ function Empty({ children }: { children: ReactNode }) {
   return <div className="py-10 text-center text-sm text-muted-foreground">{children}</div>;
 }
 
-function QueueList({ slug, items, user }: { slug: string; items: QueueItem[]; user: User | null }) {
+function QueueList({ slug, user }: { slug: string; user: User | null }) {
   const qc = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const { data } = useQueuePage(slug, page, pageSize);
+  const items = data?.items ?? [];
+  const offset = (page - 1) * pageSize;
+  // The list shrank under us (songs played): step back to a page that exists.
+  useEffect(() => {
+    if (data && page > 1 && data.items.length === 0) setPage(Math.max(1, Math.ceil(data.total / pageSize)));
+  }, [data, page, pageSize]);
   const remove = useMutation({
     mutationFn: (id: string) => api.del(`/radios/${slug}/queue/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["radio", slug] }),
     onError: (e) => toast.error(e.message),
   });
-  const total = items.reduce((s, i) => s + (i.track.durationSec ?? 0), 0);
-
   return (
     <Card>
       <CardContent className="divide-y">
@@ -372,7 +402,7 @@ function QueueList({ slug, items, user }: { slug: string; items: QueueItem[]; us
                   </div>
                 )}
                 <div className="flex items-center gap-3">
-                  <span className="w-5 text-right text-xs text-muted-foreground tabular-nums">{i + 1}</span>
+                  <span className="w-6 text-right text-xs text-muted-foreground tabular-nums">{offset + i + 1}</span>
                   <div className="min-w-0 flex-1">
                     <Row
                       item={item}
@@ -395,8 +425,9 @@ function QueueList({ slug, items, user }: { slug: string; items: QueueItem[]; us
               </Fragment>
             ))}
             <div className="pt-3 text-right text-xs text-muted-foreground">
-              {items.length} tracks · {duration(total)}
+              {data?.total} tracks · {duration(data?.totalDurationSec ?? 0)}
             </div>
+            <Pager page={page} pageSize={pageSize} total={data?.total ?? 0} onPage={setPage} onPageSize={setPageSize} label="songs" />
           </>
         )}
       </CardContent>
@@ -420,16 +451,18 @@ function skippedLabel(reason: QueueItem["skipReason"]): string {
 }
 
 function HistoryList({ slug, lineup }: { slug: string; lineup: Lineup }) {
-  const { data, isLoading } = useHistory(slug);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const { data, isLoading } = useHistory(slug, page, pageSize);
   return (
     <Card>
       <CardContent className="divide-y">
         {isLoading ? (
           <Skeleton className="h-24" />
-        ) : !data?.length ? (
+        ) : !data?.items.length ? (
           <Empty>Nothing has aired yet.</Empty>
         ) : (
-          data.map((item) => (
+          data.items.map((item) => (
             <Row
               key={item.id}
               item={item}
@@ -447,6 +480,7 @@ function HistoryList({ slug, lineup }: { slug: string; lineup: Lineup }) {
             />
           ))
         )}
+        <Pager page={page} pageSize={pageSize} total={data?.total ?? 0} onPage={setPage} onPageSize={setPageSize} label="songs" />
       </CardContent>
     </Card>
   );
@@ -470,7 +504,7 @@ function TopPlayers({ slug }: { slug: string }) {
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="truncate text-sm font-medium">{p.user.displayName}</div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-red-500/80" style={{ width: `${(p.plays / max) * 100}%` }} />
+                    <div className="h-full rounded-full bg-brand/80" style={{ width: `${(p.plays / max) * 100}%` }} />
                   </div>
                 </div>
                 <span className="w-28 shrink-0 text-right text-sm tabular-nums">

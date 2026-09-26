@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Migrations run on real databases once released: never edit one, add a new one.
+      - name: Migrations are append-only
+        if: github.event_name == 'pull_request'
+        run: |
+          changed=$(git diff --name-status "origin/${{ github.base_ref }}"...HEAD -- apps/server/drizzle/ | grep -E '^(M|D|R)' | grep '\.sql' || true)
+          if [ -n "$changed" ]; then
+            echo "::error::Released migrations must not change. Add a new migration instead:"
+            echo "$changed"
+            exit 1
+          fi
+
+      # Unit, integration and end-to-end tests in a throwaway copy of the stack.
+      # Tests that need YouTube/SoundCloud (@network) are skipped: CI's IPs get bot-checked.
+      - name: Test
+        env:
+          E2E_ARGS: --grep-invert @network
+        run: scripts/test.sh
+
+      - name: Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 7

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   api,
+  type Page,
   type QueueItem,
   type RadioDetail,
   type RadioStats,
@@ -28,7 +29,8 @@ export const useRadio = (slug: string | undefined) =>
       return { ...d, clockSkewMs: Date.parse(d.serverTime) - Date.now() };
     },
     enabled: !!slug,
-    refetchInterval: 5_000,
+    // Poll every second while songs are changing, so the gap after a skip is short.
+    refetchInterval: (q) => (q.state.data && !q.state.data.nowPlaying && q.state.data.queueTotal > 0 ? 1_000 : 5_000),
   });
 
 export const useStream = (slug: string | undefined) =>
@@ -39,13 +41,23 @@ export const useStream = (slug: string | undefined) =>
     refetchInterval: 10_000,
   });
 
-export const useHistory = (slug: string | undefined) =>
+export const useHistory = (slug: string | undefined, page: number, pageSize: number) =>
   useQuery({
-    queryKey: ["radio", slug, "history"],
-    queryFn: () => api.get<{ items: QueueItem[] }>(`/radios/${slug}/history?limit=50`),
+    queryKey: ["radio", slug, "history", page, pageSize],
+    queryFn: () => api.get<Page<QueueItem>>(`/radios/${slug}/history?page=${page}&pageSize=${pageSize}`),
     enabled: !!slug,
     refetchInterval: 20_000,
-    select: (d) => d.items,
+    placeholderData: (prev) => prev,
+  });
+
+export const useQueuePage = (slug: string | undefined, page: number, pageSize: number) =>
+  useQuery({
+    queryKey: ["radio", slug, "queue", page, pageSize],
+    queryFn: () =>
+      api.get<Page<QueueItem> & { totalDurationSec: number }>(`/radios/${slug}/queue?page=${page}&pageSize=${pageSize}`),
+    enabled: !!slug,
+    refetchInterval: 5_000,
+    placeholderData: (prev) => prev,
   });
 
 export const useStats = (slug: string | undefined) =>
@@ -56,14 +68,13 @@ export const useStats = (slug: string | undefined) =>
     refetchInterval: 30_000,
   });
 
-export const useSongs = (slug: string | undefined, sort: SongSort) =>
+export const useSongs = (slug: string | undefined, sort: SongSort, page: number, pageSize: number) =>
   useQuery({
-    queryKey: ["radio", slug, "songs", sort],
-    queryFn: () => api.get<{ songs: SongRecord[] }>(`/radios/${slug}/songs?sort=${sort}`),
+    queryKey: ["radio", slug, "songs", sort, page, pageSize],
+    queryFn: () => api.get<Page<SongRecord>>(`/radios/${slug}/songs?sort=${sort}&page=${page}&pageSize=${pageSize}`),
     enabled: !!slug,
     refetchInterval: 30_000,
     placeholderData: (prev) => prev,
-    select: (d) => d.songs,
   });
 
 /** Seconds into the on-air track, as heard by a listener `delaySec` behind live. */

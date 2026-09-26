@@ -9,6 +9,7 @@ import { useSongs } from "@/hooks/use-radio";
 import type { SongRecord, SongSort } from "@/lib/api";
 import { ago } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { Pager } from "@/components/pager";
 
 const SORTS: { value: SongSort; label: string }[] = [
   { value: "played", label: "Most played" },
@@ -30,6 +31,7 @@ function recordLine(s: SongRecord): string {
 
 /** Why Alfred leaves a song alone, in words. */
 function alfredVerdict(s: SongRecord): string | null {
+  if (s.unavailable) return "No longer available";
   if (s.alfredOk) return null;
   if (s.lastOutcome === "votes") return "Voted off";
   if (s.lastOutcome === "admin") return "Admin skipped it";
@@ -38,8 +40,16 @@ function alfredVerdict(s: SongRecord): string | null {
 
 /** Every song the station has played, with its record, and a way to bring one back. */
 export function SongsList({ slug, lineup }: { slug: string; lineup: Lineup }) {
-  const [sort, setSort] = useState<SongSort>("played");
-  const { data, isLoading, isFetching } = useSongs(slug, sort);
+  const [sort, setSortState] = useState<SongSort>("played");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const setSort = (s: SongSort) => {
+    setSortState(s);
+    setPage(1);
+  };
+  const { data: pageData, isLoading, isFetching } = useSongs(slug, sort, page, pageSize);
+  const data = pageData?.items;
+  const offset = (page - 1) * pageSize;
 
   return (
     <div className="space-y-3">
@@ -72,7 +82,7 @@ export function SongsList({ slug, lineup }: { slug: string; lineup: Lineup }) {
               return (
                 <div key={s.track.id} className="flex items-center gap-3 py-2.5">
                   <span className="w-5 shrink-0 text-right text-sm font-semibold text-muted-foreground tabular-nums">
-                    {i + 1}
+                    {offset + i + 1}
                   </span>
                   <TrackArt src={s.track.thumbnailUrl} className="size-11" />
                   <div className="min-w-0 flex-1">
@@ -103,11 +113,12 @@ export function SongsList({ slug, lineup }: { slug: string; lineup: Lineup }) {
                       </div>
                     )}
                   </div>
-                  <AddAgain lineup={lineup} track={s.track} />
+                  <AddAgain lineup={lineup} track={{ ...s.track, unavailable: s.unavailable }} />
                 </div>
               );
             })
           )}
+          <Pager page={page} pageSize={pageSize} total={pageData?.total ?? 0} onPage={setPage} onPageSize={setPageSize} label="songs" />
         </CardContent>
       </Card>
     </div>

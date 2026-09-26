@@ -1,7 +1,17 @@
 import { spawn } from "node:child_process";
+import { assertPublicUrl } from "./url-safety.js";
 
 // yt-dlp needs a JS runtime for YouTube; node is always present in our image.
-export const YTDLP_BASE_ARGS = ["--no-playlist", "--no-warnings", "--js-runtimes", "node"];
+// The generic extractor (any web page / raw file URL) is off: only sites yt-dlp
+// knows (YouTube, SoundCloud, Bandcamp, …) can be fetched.
+export const YTDLP_BASE_ARGS = [
+  "--no-playlist",
+  "--no-warnings",
+  "--js-runtimes",
+  "node",
+  "--use-extractors",
+  "default,-generic",
+];
 
 export type ProbeResult = {
   sourceKey: string;
@@ -41,6 +51,9 @@ export function runYtdlp(args: string[], timeoutMs: number, signal?: AbortSignal
       if (signal?.aborted) return reject(new AbortedError("aborted"));
       if (killSignal) return reject(new ProbeError("Timed out while reading that link"));
       const line = err.split("\n").find((l) => l.startsWith("ERROR:")) ?? err.trim();
+      if (/Unsupported URL|No suitable extractor/i.test(line)) {
+        return reject(new ProbeError("That site isn't supported. Try a YouTube, SoundCloud or Bandcamp link, or search by name."));
+      }
       reject(new ProbeError(line.replace(/^ERROR:\s*/, "").slice(0, 300) || "yt-dlp failed"));
     });
   });
@@ -48,8 +61,17 @@ export function runYtdlp(args: string[], timeoutMs: number, signal?: AbortSignal
 
 /** Resolves a user-submitted URL into canonical track metadata without downloading it. */
 export async function probe(url: string): Promise<ProbeResult> {
-  const raw = await runYtdlp(["-J", "--skip-download", url], 45_000);
+  try {
+    await assertPublicUrl(url);
+  } catch (e) {
+    throw new ProbeError((e as Error).message);
+  }
+  // "--" so a link can never be read as an option.
+  const raw = await runYtdlp(["-J", "--skip-download", "--", url], 45_000);
   const info = JSON.parse(raw);
+  if (!info || typeof info !== "object") {
+    throw new ProbeError("That site isn't supported. Try a YouTube, SoundCloud or Bandcamp link, or search by name.");
+  }
   if (info._type === "playlist") throw new ProbeError("Playlists are not supported, push a single track");
   if (info.is_live) throw new ProbeError("Live streams can't be queued");
   return {

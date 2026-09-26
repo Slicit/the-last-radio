@@ -3,7 +3,9 @@
 // also remember which signed-in user each listener is, since only people
 // actually listening get a say in skip votes.
 const TTL_MS = 45_000;
-type Beat = { at: number; userId: string | null };
+type Beat = { at: number; userId: string | null; ip: string };
+// One household may have a few tabs/devices; more than this from one IP is inflation.
+const MAX_LISTENERS_PER_IP = 5;
 const byRadio = new Map<string, Map<string, Beat>>();
 
 function live(radioId: string): Map<string, Beat> | undefined {
@@ -14,10 +16,17 @@ function live(radioId: string): Map<string, Beat> | undefined {
   return m;
 }
 
-export function heartbeat(radioId: string, listenerId: string, userId: string | null) {
-  let m = byRadio.get(radioId);
+/** Records a listener; returns false when the IP already has too many (it then isn't counted). */
+export function heartbeat(radioId: string, listenerId: string, userId: string | null, ip: string): boolean {
+  let m = live(radioId);
   if (!m) byRadio.set(radioId, (m = new Map()));
-  m.set(listenerId, { at: Date.now(), userId });
+  if (!m.has(listenerId)) {
+    let fromIp = 0;
+    for (const b of m.values()) if (b.ip === ip) fromIp++;
+    if (fromIp >= MAX_LISTENERS_PER_IP) return false;
+  }
+  m.set(listenerId, { at: Date.now(), userId, ip });
+  return true;
 }
 
 export function listenerCount(radioId: string): number {

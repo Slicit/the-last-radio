@@ -22,6 +22,55 @@
       "when": 1790425927348,
       "tag": "0002_hours_and_alfred",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790427547930,
+      "tag": "0003_api_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790428141784,
+      "tag": "0004_feedback",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790430537060,
+      "tag": "0005_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790431404956,
+      "tag": "0006_rename_pl_theme",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790432544306,
+      "tag": "0007_privacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790435859800,
+      "tag": "0008_song_health",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790436639931,
+      "tag": "0009_private_stations",
+      "breakpoints": true
     }
   ]
 }

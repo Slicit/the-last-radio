@@ -7,6 +7,7 @@ import type { AudioCache } from "./cache.js";
 import type { Radio } from "../db/schema.js";
 import { hoursStatus } from "../lib/schedule.js";
 import { alfredTopUp } from "../lib/alfred.js";
+import { looksGone, markUnavailable } from "../lib/song-health.js";
 
 const { queueItems, tracks, radios } = schema;
 
@@ -252,7 +253,21 @@ export class Channel {
   drain(): Promise<void> {
     this.draining = true;
     if (!this.onAirNow) return Promise.resolve();
-    return new Promise((resolve) => (this.drained = resolve));
+    return new Promise((resolve) => {
+      this.drained = resolve;
+      // If the stream server is gone, nobody hears the rest of the song and its
+      // audio can't be consumed: stop waiting rather than hang the restart.
+      let deafSince = 0;
+      const watchdog = setInterval(() => {
+        if (this.encoder?.stdin?.writable) deafSince = 0;
+        else if (!deafSince) deafSince = Date.now();
+        else if (Date.now() - deafSince > 5000) {
+          clearInterval(watchdog);
+          this.log("stream server unreachable while draining; not waiting for the song to end");
+          resolve();
+        }
+      }, 1000);
+    });
   }
 
   /** Alfred's top-up (open hours only) and fetching the next songs ahead of time. */
@@ -317,6 +332,7 @@ export class Channel {
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           this.log(`fetch failed for "${item.track.title}": ${msg}`);
+          if (looksGone(msg)) await markUnavailable(item.track.id, msg);
           await db
             .update(queueItems)
             .set({ status: "failed", error: msg.slice(0, 500), endedAt: new Date() })

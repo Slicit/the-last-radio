@@ -2,7 +2,8 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Plus } from "lucide-react";
+import { Lock, Pencil, Plus } from "lucide-react";
+import { StationAccessPanel } from "@/components/station-access";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OnAir } from "@/components/on-air";
+import { Pager } from "@/components/pager";
+import { FeedbackAdmin } from "@/components/feedback-admin";
 import { useMe } from "@/hooks/use-auth";
 import { useRadios, useStream } from "@/hooks/use-radio";
 import { api, type AdminUser, type Radio, type Role } from "@/lib/api";
@@ -25,6 +28,7 @@ export function AdminPage() {
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold tracking-tight">Admin</h1>
+      <FeedbackAdmin />
       <RadiosAdmin />
       <UsersAdmin selfId={user.id} />
     </div>
@@ -42,6 +46,7 @@ type RadioForm = {
   rateLimitWindowMin: number;
   maxTrackMin: number;
   skipVotePercent: number;
+  isPrivate: boolean;
   hoursEnabled: boolean;
   hoursDays: number[];
   hoursStart: string;
@@ -78,6 +83,7 @@ const blankForm: RadioForm = {
   rateLimitWindowMin: 10,
   maxTrackMin: 10,
   skipVotePercent: 50,
+  isPrivate: false,
   hoursEnabled: false,
   hoursDays: [1, 2, 3, 4, 5],
   hoursStart: "08:00",
@@ -96,6 +102,7 @@ function toForm(r: Radio): RadioForm {
     rateLimitWindowMin: Math.round(r.rateLimitWindowSec / 60),
     maxTrackMin: Math.round(r.maxTrackSec / 60),
     skipVotePercent: r.skipVotePercent,
+    isPrivate: r.isPrivate,
     hoursEnabled: r.hoursEnabled,
     hoursDays: r.hoursDays,
     hoursStart: r.hoursStart,
@@ -154,7 +161,8 @@ function RadiosAdmin() {
               {radios?.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>
-                    <Link to={`/r/${r.slug}`} className="font-medium hover:underline">
+                    <Link to={`/r/${r.slug}`} className="inline-flex items-center gap-1 font-medium hover:underline">
+                      {r.isPrivate && <Lock className="size-3.5" aria-label="Private" />}
                       {r.name}
                     </Link>
                     <div className="text-xs text-muted-foreground">/{r.slug}</div>
@@ -210,6 +218,7 @@ function RadioDialog({ target, onClose }: { target: Radio | "new" | null; onClos
         rateLimitWindowSec: form.rateLimitWindowMin * 60,
         maxTrackSec: form.maxTrackMin * 60,
         skipVotePercent: form.skipVotePercent,
+        isPrivate: form.isPrivate,
         hoursEnabled: form.hoursEnabled,
         hoursDays: form.hoursDays,
         hoursStart: form.hoursStart,
@@ -328,6 +337,18 @@ function RadioDialog({ target, onClose }: { target: Radio | "new" | null; onClos
                 : "Votes are off. Only admins and the person who added a song can skip it."}
             </p>
           </div>
+          <Section title="Who can listen">
+            <label className="flex items-center gap-3 text-sm">
+              <Switch checked={form.isPrivate} onCheckedChange={(v) => set("isPrivate", v)} />
+              {form.isPrivate ? "Private: only the people and email domains below" : "Public: everyone"}
+            </label>
+            {form.isPrivate &&
+              (isNew ? (
+                <p className="text-xs text-muted-foreground">Create the station first, then add people and domains here.</p>
+              ) : (
+                <StationAccessPanel slug={form.slug} />
+              ))}
+          </Section>
           <Section title="Broadcast hours">
             <label className="flex items-center gap-3 text-sm">
               <Switch checked={form.hoursEnabled} onCheckedChange={(v) => set("hoursEnabled", v)} />
@@ -432,10 +453,21 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function UsersAdmin({ selfId }: { selfId: string }) {
   const qc = useQueryClient();
-  const { data: users, isLoading } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => api.get<{ users: AdminUser[] }>("/users"),
-    select: (d) => d.users,
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const { data, isLoading } = useQuery({
+    queryKey: ["users", page, pageSize],
+    queryFn: () => api.get<{ items: AdminUser[]; total: number }>(`/users?page=${page}&pageSize=${pageSize}`),
+    placeholderData: (prev) => prev,
+  });
+  const users = data?.items;
+  const verify = useMutation({
+    mutationFn: (id: string) => api.patch(`/users/${id}`, { emailVerified: true }),
+    onSuccess: () => {
+      toast.success("Marked as verified");
+      qc.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (e) => toast.error(e.message),
   });
   const setRole = useMutation({
     mutationFn: ({ id, role }: { id: string; role: Role }) => api.patch(`/users/${id}`, { role }),
@@ -460,6 +492,7 @@ function UsersAdmin({ selfId }: { selfId: string }) {
             <TableHeader>
               <TableRow>
                 <TableHead>User</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead className="text-right">Added</TableHead>
                 <TableHead className="text-right">Aired</TableHead>
@@ -472,6 +505,15 @@ function UsersAdmin({ selfId }: { selfId: string }) {
                   <TableCell>
                     <div className="font-medium">{u.displayName}</div>
                     <div className="text-xs text-muted-foreground">{u.email}</div>
+                  </TableCell>
+                  <TableCell>
+                    {u.emailVerified ? (
+                      <span className="text-xs text-brand">confirmed</span>
+                    ) : (
+                      <Button variant="ghost" size="xs" onClick={() => verify.mutate(u.id)} title="Vouch for this address (when email can't be sent)">
+                        Mark verified
+                      </Button>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Select
@@ -496,6 +538,7 @@ function UsersAdmin({ selfId }: { selfId: string }) {
             </TableBody>
           </Table>
         )}
+        <Pager page={page} pageSize={pageSize} total={data?.total ?? 0} onPage={setPage} onPageSize={setPageSize} label="people" />
       </CardContent>
     </Card>
   );

@@ -1,69 +1,155 @@
-# The Last Radio 📻
+<div align="center">
 
-A collaborative web radio. Each station plays **one shared live stream**, and signed-in listeners
-push tracks (YouTube, SoundCloud, Bandcamp, anything yt-dlp understands) onto its playlist,
-within a per-station rate limit.
+# 📻 The Last Radio
 
-- Multiple stations, each with its own playlist, history, top tracks and top players
-- Email/password auth, roles `admin` / `player` (the first account to register becomes admin)
-- Admins create and configure stations, skip tracks, remove anything, promote users, and push without limits
+**A radio station you run with your friends.**
+Everyone hears the same live stream; everyone picks the music.
 
-## Architecture
+![A station: what's on air, what's next, and adding a song](docs/screenshots/station.png)
 
-```
-browser ──► web (nginx :28700) ──/api──► api (Hono)  ──► postgres
-                   │                                   ▲
-                   └──/hls──► mediamtx ◄──RTSP── broadcaster (ffmpeg + yt-dlp)
-```
+</div>
 
-| Service       | What it does                                                                                           |
-| ------------- | ------------------------------------------------------------------------------------------------------ |
-| `web`         | React + Vite + shadcn/ui (Base UI) SPA, served by nginx, which also proxies `/api` and `/hls`.           |
-| `api`         | Hono + Drizzle. Auth, stations, queue, stats. Probes pushed URLs with `yt-dlp -J`. Runs DB migrations. |
-| `broadcaster` | One channel per active station: downloads queued tracks ahead of time, decodes them to PCM, and feeds a single long-lived ffmpeg encoder at wall-clock rate. Gaps are filled with silence, so the stream never drops between tracks. |
-| `mediamtx`    | Receives RTSP from the broadcaster and serves HLS (fMP4, 2 s segments). Its API backs the "on air" check. |
-| `postgres`    | Everything else.                                                                                       |
+Search for a song by name, and it's on the playlist a moment later. Too many
+sad songs? Vote it off. Queue running dry? Alfred, the station's fill-in DJ,
+brings back the crowd's favourites. Run as many stations as you like (public,
+private, open only in the evening), and let your AI assistant add songs for you.
 
-The playlist *is* the play history: a `queue_items` row goes `queued → playing → played | skipped | failed`
-(or `removed`), so "most played" and "top players" are plain aggregates over it.
+---
 
-**Rate limit:** a sliding window per user and station (`rate_limit_count` pushes per
-`rate_limit_window_sec`). Every push counts until it ages out, even one that was later removed.
-The limit is enforced under a Postgres advisory lock, so parallel requests can't slip past it.
+## Features
 
-## Running it
+### Listening together
+- **One live stream per station**: everyone hears the same moment, like real radio (HLS through [mediamtx](https://github.com/bluenviron/mediamtx)).
+- A **player that follows you** around the site, with remembered volume.
+- **Seamless between songs**: silence fills the gaps, so the stream never drops; songs are loudness-normalised.
+- **Live listener counts**.
+
+### Adding songs
+- **Search by artist or title on YouTube or SoundCloud**, straight from a dropdown, or **paste a link** from YouTube, SoundCloud, Bandcamp, Mixcloud and more.
+- Picks from search are **added instantly**. Songs that can't be added say why (*On air now*, *Already in line*, *Over 10 min*).
+- **Fair use per station**: each person can add N songs per window (say 3 per 10 minutes), with a friendly countdown.
+- **Add again** from a station's history or song list.
+
+### The crowd decides
+- **Vote to skip**: when enough of the people *listening* downvote, the song goes. Whoever added a song can skip their own; admins skip anything.
+- **Alfred, the fill-in DJ**: when less than 15 minutes is lined up, Alfred replays songs the station loved, weighted by a score (plays, people who added it, downvotes, skips). He never brings back a song that was voted off, and people's picks always play first.
+- **Song records** for every station: most played, crowd favourites, most downvoted, recently played; plus top players.
+- A weekly **song health check** marks songs that disappeared from their site; *Find it* searches for another copy.
+
+### Stations
+- **As many stations as you want**, each with its own rules: song limits, maximum length, vote threshold, Alfred's threshold.
+- **Broadcast hours** in the station's timezone (e.g. weekdays 8:00–18:00, or Friday nights 22:00–02:00). The song on air at closing finishes; the queue waits for the next opening.
+- **Private stations** for a team or a family: add people by email, or let in everyone with a **confirmed** address at a domain (`@example.com`). Private audio is protected too, not just the page.
+
+### Your AI, your scripts
+- **MCP server** at `/mcp`: ask Claude (or any MCP client) *"what's playing on Main Stage?"* or *"add some Daft Punk"*. Tools: `list_stations`, `now_playing`, `get_queue`, `song_stats`, `search_songs`, `add_song`, `downvote`, `undo_downvote`, `skip_my_song`.
+- **OAuth 2.1** (PKCE, dynamic client registration, refresh rotation) so assistants sign in like people do, with a consent screen, or **API keys** with read-only or read-and-add scopes.
+- **A documented REST API**: OpenAPI 3.1 at `/api/openapi.json`, browsable on the *Developers* page.
+
+### Make it yours
+- **Three themes**: *Night* (dark), *Light* and *Vintage* (an old wooden radio: sepia paper, walnut, an amber dial glow).
+- **Profile photo** and display name. Uploads are re-encoded and stripped of metadata.
+- **Feedback** straight to the admins (3 a day), who triage it: vote a priority, mark read, archive.
+
+### Privacy and security, built in
+- **No trackers, no ads, one sign-in cookie**, so no cookie banner; people acknowledge a clear privacy notice (French and English, written for GDPR and French law) when they sign up or when it changes.
+- **Download my data** and **Delete my account** are self-service.
+- Passwords hashed with salted **argon2id**; sessions, keys and tokens stored only as hashes.
+- **Rate limits** on sign-in (per IP and per account), sign-up, OAuth, MCP, search and uploads; CSRF, SSRF and clickjacking protections; a strict Content-Security-Policy.
+
+---
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Stations](docs/screenshots/home.png) **Stations**: what's on everywhere, private ones marked with a lock. | ![Search](docs/screenshots/search.png) **Search**: find a song by name and add it in one click. |
+| ![Songs](docs/screenshots/songs-light.png) **Song records** in the *Light* theme: crowd favourites and why Alfred leaves a song alone. | ![Vintage](docs/screenshots/station-vintage.png) **The *Vintage* theme**. |
+| ![Admin](docs/screenshots/admin.png) **Admin**: the feedback inbox and every station's rules. | ![Station editor](docs/screenshots/station-editor.png) **A private station**: people and email domains. |
+| ![Connect your AI](docs/screenshots/connect.png) **Connect your AI**: the MCP address, API keys, connected apps. | ![Phone](docs/screenshots/mobile.png) **On a phone**. |
+
+<sub>Screenshots use invented artists, titles and artwork (see `e2e/docs/demo-data.ts`); regenerate them with `scripts/screenshots.sh`.</sub>
+
+---
+
+## Run it
+
+You need Docker (with Compose).
 
 ```bash
-cp .env.example .env   # then set POSTGRES_PASSWORD
+git clone git@github.com:Slicit/the-last-radio.git && cd the-last-radio
+cp .env.example .env        # set POSTGRES_PASSWORD at least
 docker compose up -d --build
 ```
 
-Open http://localhost:28700, register (the first user becomes admin), then go to **Admin → New station**.
+Open <http://localhost:28700>, **sign up: the first account becomes the admin**, then *Admin → New station*.
 
-Host ports (chosen to stay clear of other stacks): `WEB_PORT=28700`, and Postgres on
-`127.0.0.1:28732` for debugging. Nothing else is published.
+### Configuration (`.env`)
 
-Promote or demote someone from the command line:
+| Variable | Default | What it does |
+|---|---|---|
+| `POSTGRES_PASSWORD` | `change-me` | Database password. Set it. |
+| `WEB_PORT` / `PG_PORT` | `28700` / `28732` | Host ports (Postgres only on localhost, for debugging). |
+| `PUBLIC_URL` | derived | The public origin, e.g. `https://radio.example.com`. Needed behind a TLS proxy (OAuth, MCP). |
+| `COOKIE_SECURE` | `false` | Set `true` when served over HTTPS. |
+| `SMTP_URL` / `MAIL_FROM` | unset | Email for confirming addresses (private stations' domain rules). Without it, admins can mark people verified. |
+| `PRIVACY_CONTROLLER` / `PRIVACY_CONTACT` | unset | Who runs this radio and how to reach them, shown in the privacy notice. |
+| `REGISTRATIONS_PER_HOUR` | `5` | Sign-ups allowed per IP per hour. |
+| `SONG_CHECK_INTERVAL_DAYS` | `7` | How often each song is re-checked. |
+| `SERVER_IMAGE` / `WEB_IMAGE` | built locally | Released images to run (see below). |
+
+> **Claude on the web** reaches MCP servers from the cloud, so it needs the radio on a **public HTTPS** address (a reverse proxy or a tunnel). Claude Code and local clients work on your network as is.
+
+### Updating without losing anything
 
 ```bash
-docker compose exec api node dist/cli.js promote someone@example.com
+scripts/deploy.sh           # build here and roll out
+scripts/deploy.sh --pull    # or run released images (SERVER_IMAGE / WEB_IMAGE)
 ```
 
-## Development
+The deploy script **backs up the database first** (`backups/`, last 10 kept), then restarts one service at a time: the API (which applies any new migrations) and the web in seconds, then the broadcaster, which **lets the song on air finish**. Your data lives in the `lastradio-pgdata` volume, which updates never touch; migrations only ever move forward.
+
+Releases: push a tag like `v1.2.0` and GitHub Actions publishes `ghcr.io/slicit/the-last-radio-server` and `-web` (`1.2.0`, `1.2`, `latest`).
+
+---
+
+## How it works
+
+```
+browser ──► web (nginx) ──/api, /mcp──► api (Hono) ──────► postgres
+                │                          ▲
+                └──/hls (checked by api)──► mediamtx ◄──RTSP── broadcaster
+                                                               (yt-dlp + ffmpeg, Alfred, song checks)
+```
+
+| Service | Role |
+|---|---|
+| `web` | React + Vite + shadcn/ui, served by nginx; proxies the API and the audio. Every audio request is authorised by the API (private stations). |
+| `api` | Hono + Drizzle (Postgres): accounts, stations, queue, votes, stats, feedback, OAuth, the MCP server and the OpenAPI document. Runs migrations. |
+| `broadcaster` | One channel per open station: fetches songs ahead of time, decodes them, and feeds one continuous encoder at wall-clock rate. Runs Alfred and the weekly song checks. Drains gracefully on restart. |
+| `mediamtx` | Takes RTSP from the broadcaster, serves HLS. |
+| `postgres` | Everything that lasts. |
+
+The playlist *is* the history: a queue item goes `queued → playing → played / skipped / failed`, so every statistic is a query, and Alfred learns from the same records people browse.
+
+---
+
+## Develop and test
 
 ```bash
 npm install
 npm run typecheck
-npm run db:generate -w @lastradio/server   # after editing apps/server/src/db/schema.ts
+scripts/test.sh             # unit + integration + end-to-end, in a throwaway stack
+scripts/test.sh unit        # or one layer: unit | integration | e2e
 ```
 
-`npm run dev -w @lastradio/web` starts Vite and proxies `/api` and `/hls` to a running stack
-(`LASTRADIO_URL`, default `http://localhost:28700`).
+- **Behaviour specs** live in [`specs/features`](specs/features) (Gherkin), one feature per journey. Tests reuse the scenario titles, so every behaviour points to the test that proves it.
+- **Unit** and **integration** tests use Vitest; integration tests run the real API against Postgres. **End-to-end** tests drive the real app in Firefox with Playwright, including a real email round-trip through Mailpit.
+- The test stack (`lastradio-test`) is a separate copy with its own containers, network, volumes and ports: tests never touch a running radio.
+- CI (GitHub Actions) runs everything on each push, and refuses changes to released migrations.
 
-## Notes
+Project rules for contributors, human or AI, are in [`CLAUDE.md`](CLAUDE.md), notably: **keep the privacy notice true** (a test fails when the database schema changes until the notice has been reviewed).
 
-- yt-dlp is pulled at image build time; YouTube breaks older versions regularly, so rebuild
-  `api`/`broadcaster` (`docker compose build --no-cache api`) when fetches start failing.
-- Listener counts come from a player heartbeat, not from mediamtx.
-- Restreaming third-party content has licensing implications. Keep deployments private, or
-  restrict stations to content you have the rights to.
+---
+
+<sub>Songs are streamed from third-party sites with [yt-dlp](https://github.com/yt-dlp/yt-dlp). Restreaming music has licensing implications: keep your radio private, or play what you have the rights to.</sub>

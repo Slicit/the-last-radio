@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuthActions, useMe } from "@/hooks/use-auth";
+import { PrivacyAck } from "@/components/privacy-ack";
 
 export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const { user } = useMe();
@@ -16,15 +17,19 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [accepted, setAccepted] = useState(false);
 
   const m = mode === "login" ? login : register;
+  // Signed in, but the privacy notice is new to them: a quick step before going on.
+  if (user?.privacyAckRequired) return <PrivacyAck onDone={() => navigate(from, { replace: true })} />;
   if (user) return <Navigate to={from} replace />;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const done = { onSuccess: () => navigate(from, { replace: true }) };
+    // If the privacy notice is new to them, stay here: the page shows the acknowledgement step.
+    const done = { onSuccess: (d: { user: { privacyAckRequired: boolean } }) => !d.user.privacyAckRequired && navigate(from, { replace: true }) };
     if (mode === "login") login.mutate({ email, password }, done);
-    else register.mutate({ email, password, displayName }, done);
+    else register.mutate({ email, password, displayName, acceptPrivacy: accepted }, done);
   };
 
   return (
@@ -75,6 +80,24 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
+            {mode === "register" && (
+              <label className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  required
+                  checked={accepted}
+                  onChange={(e) => setAccepted(e.target.checked)}
+                  className="mt-0.5 size-4 accent-primary"
+                />
+                <span>
+                  I've read the{" "}
+                  <Link to="/privacy" target="_blank" className="text-foreground underline">
+                    privacy &amp; cookies notice
+                  </Link>
+                  . The radio uses one sign-in cookie and no trackers.
+                </span>
+              </label>
+            )}
             {m.error && (
               <Alert variant="destructive">
                 <AlertDescription>{m.error.message}</AlertDescription>

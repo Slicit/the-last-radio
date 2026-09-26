@@ -4,6 +4,7 @@ import { db, schema } from "./db/index.js";
 import { env } from "./lib/env.js";
 import { AudioCache } from "./broadcaster/cache.js";
 import { Channel } from "./broadcaster/channel.js";
+import { checkSongs } from "./lib/song-health.js";
 
 const { radios, queueItems } = schema;
 
@@ -34,6 +35,20 @@ async function main() {
   }
 
   const channels = new Map<string, Channel>();
+
+  // Song health: a small batch every hour, so each song is re-checked about weekly.
+  const runHealthCheck = async () => {
+    try {
+      const r = await checkSongs();
+      if (r.checked || r.gone.length || r.retry) {
+        console.log(`song check: ${r.checked} fine, ${r.gone.length} gone${r.gone.length ? ` (${r.gone.join(" · ")})` : ""}, ${r.retry} to retry`);
+      }
+    } catch (e) {
+      console.error("song check:", e);
+    }
+  };
+  setTimeout(runHealthCheck, 60_000);
+  setInterval(runHealthCheck, 3600_000);
 
   // Deploys send SIGTERM: let every song on air finish first (compose allows
   // up to 25 minutes via stop_grace_period), then go. A second signal is final.

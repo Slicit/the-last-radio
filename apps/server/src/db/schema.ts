@@ -9,6 +9,7 @@ import {
   index,
   uniqueIndex,
   primaryKey,
+  customType,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -36,6 +37,17 @@ export const users = pgTable("users", {
   displayName: text("display_name").notNull(),
   passwordHash: text("password_hash").notNull(),
   role: roleEnum("role").notNull().default("player"),
+  // UI theme: "night" (dark), "light" or "vintage".
+  theme: text("theme").notNull().default("night"),
+  // Set when the user has an avatar; doubles as its cache-busting version.
+  avatarUpdatedAt: timestamp("avatar_updated_at", { withTimezone: true }),
+  // Which privacy notice version they acknowledged, and when.
+  privacyAckVersion: text("privacy_ack_version"),
+  privacyAckAt: timestamp("privacy_ack_at", { withTimezone: true }),
+  // Set once they clicked the link we emailed (or an admin vouched for them).
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+  // Set when the account was deleted: the row stays, anonymised, so station history holds.
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -59,6 +71,8 @@ export const radios = pgTable("radios", {
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
   isActive: boolean("is_active").notNull().default(true),
+  // Private stations are visible only to admins, members, and verified emails matching a domain rule.
+  isPrivate: boolean("is_private").notNull().default(false),
   // A player may push at most `rateLimitCount` tracks per `rateLimitWindowSec`.
   rateLimitCount: integer("rate_limit_count").notNull().default(3),
   rateLimitWindowSec: integer("rate_limit_window_sec").notNull().default(600),
@@ -86,6 +100,10 @@ export const tracks = pgTable("tracks", {
   artist: text("artist"),
   durationSec: integer("duration_sec"),
   thumbnailUrl: text("thumbnail_url"),
+  // Song health check: when yt-dlp last confirmed the source, and when it found it gone.
+  checkedAt: timestamp("checked_at", { withTimezone: true }),
+  unavailableAt: timestamp("unavailable_at", { withTimezone: true }),
+  unavailableReason: text("unavailable_reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -135,6 +153,145 @@ export const skipVotes = pgTable(
   },
   (t) => [primaryKey({ columns: [t.queueItemId, t.userId] })],
 );
+
+// ---------------------------------------------------------------- API access
+// Personal API keys and OAuth tokens share one table: a bearer token is
+// looked up by its sha256, whatever issued it.
+
+// Public OAuth clients (PKCE, no secret), created by dynamic client registration.
+export const oauthClients = pgTable("oauth_clients", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  redirectUris: text("redirect_uris").array().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const tokenKindEnum = pgEnum("token_kind", ["api_key", "oauth_access", "oauth_refresh"]);
+
+export const apiTokens = pgTable(
+  "api_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: tokenKindEnum("kind").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    // First characters of the token, so people can recognise their keys.
+    prefix: text("prefix").notNull(),
+    name: text("name"), // api keys only
+    clientId: text("client_id").references(() => oauthClients.id, { onDelete: "cascade" }),
+    scopes: text("scopes").array().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("api_tokens_user_idx").on(t.userId, t.kind)],
+);
+
+export const oauthCodes = pgTable("oauth_codes", {
+  codeHash: text("code_hash").primaryKey(),
+  clientId: text("client_id")
+    .notNull()
+    .references(() => oauthClients.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  redirectUri: text("redirect_uri").notNull(),
+  codeChallenge: text("code_challenge").notNull(),
+  scopes: text("scopes").array().notNull(),
+  resource: text("resource"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+// ---------------------------------------------------------------- feedback
+
+export const feedbackKindEnum = pgEnum("feedback_kind", ["idea", "bug", "other"]);
+
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: feedbackKindEnum("kind").notNull().default("idea"),
+    body: text("body").notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("feedback_user_idx").on(t.userId, t.createdAt), index("feedback_inbox_idx").on(t.archivedAt, t.createdAt)],
+);
+
+// Admins' triage votes: +1 / -1 each, summed into a priority score.
+export const feedbackVotes = pgTable(
+  "feedback_votes",
+  {
+    feedbackId: uuid("feedback_id")
+      .notNull()
+      .references(() => feedback.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    value: integer("value").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.feedbackId, t.userId] })],
+);
+
+// ---------------------------------------------------------------- avatars
+
+const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
+
+// Stored re-encoded (256×256 WebP, metadata stripped), never as uploaded.
+export const avatars = pgTable("avatars", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  image: bytea("image").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------- private stations
+
+export const radioMembers = pgTable(
+  "radio_members",
+  {
+    radioId: uuid("radio_id")
+      .notNull()
+      .references(() => radios.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.radioId, t.userId] }), index("radio_members_user_idx").on(t.userId)],
+);
+
+// "Everyone with a verified @domain address may join this station."
+export const radioDomains = pgTable(
+  "radio_domains",
+  {
+    radioId: uuid("radio_id")
+      .notNull()
+      .references(() => radios.id, { onDelete: "cascade" }),
+    domain: text("domain").notNull(), // lowercase, e.g. "slic.it"
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.radioId, t.domain] })],
+);
+
+// ---------------------------------------------------------------- email verification
+
+export const emailTokens = pgTable("email_tokens", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  email: text("email").notNull(), // the address it was sent to; must still match
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
 
 export type User = typeof users.$inferSelect;
 export type Radio = typeof radios.$inferSelect;

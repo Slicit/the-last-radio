@@ -1,0 +1,13 @@
+# Test-only additions (scripts/test.sh): a Mailpit inbox so emails can be
+# read back, and the API pointed at it.
+services:
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: ${STACK:-lastradio}-mailpit
+    networks: [net]
+  api:
+    environment:
+      SMTP_URL: smtp://mailpit:1025
+      MAIL_FROM: The Last Radio <radio@test.invalid>
+    depends_on:
+      mailpit: { condition: service_started }
