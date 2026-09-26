@@ -65,6 +65,7 @@ services:
       REGISTRATIONS_PER_HOUR: ${REGISTRATIONS_PER_HOUR:-5}
       SMTP_URL: ${SMTP_URL:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      YOUTUBE_PROXY: ${YOUTUBE_PROXY:-}
       CACHE_DIR: /data/cache
     depends_on:
       postgres: { condition: service_healthy }

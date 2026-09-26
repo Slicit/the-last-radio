@@ -18,8 +18,8 @@ Feature: Private stations
 
   @integration @e2e
   Scenario: Letting a whole email domain in
-    Given "Team Room" allows the domain "slic.it"
-    When Vera signs up as vera@slic.it and clicks the link in the confirmation email
+    Given "Team Room" allows the domain "acme.test"
+    When Vera signs up as vera@acme.test and clicks the link in the confirmation email
     Then "Team Room" appears for Vera
     But until she confirms, it doesn't: anyone could type an address they don't own
 

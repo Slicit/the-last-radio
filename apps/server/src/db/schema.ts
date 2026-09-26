@@ -300,7 +300,7 @@ export const radioDomains = pgTable(
     radioId: uuid("radio_id")
       .notNull()
       .references(() => radios.id, { onDelete: "cascade" }),
-    domain: text("domain").notNull(), // lowercase, e.g. "slic.it"
+    domain: text("domain").notNull(), // lowercase, e.g. "acme.test"
     addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.radioId, t.domain] })],

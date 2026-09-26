@@ -7,6 +7,8 @@ const { queueItems, tracks } = schema;
 
 // Never repeat a song that aired this recently…
 const REPEAT_GAP_MS = 30 * 60_000;
+// …or one that couldn't be fetched lately (its site may be blocking us for now).
+const FAILED_GAP_MS = 60 * 60_000;
 // …and within this long, make it progressively less likely rather than
 // impossible: a small library would otherwise leave Alfred nothing to play.
 const FRESH_AFTER_MS = 3 * 3600_000;
@@ -42,7 +44,8 @@ function quietLog(radio: Radio, message: string) {
  * (see track-stats), drawing at random weighted by each song's score, so
  * crowd favourites come back often and downvoted songs rarely or never. He
  * never picks a song whose last airing was voted off, one that aired in the
- * last 30 minutes, or one already lined up; songs from the last 3 hours are
+ * last 30 minutes, one that failed to download in the last hour, or one
+ * already lined up; songs from the last 3 hours are
  * less likely the more recently they played. His picks carry `isFill` so
  * anything a person adds plays first.
  */
@@ -57,7 +60,9 @@ export async function alfredTopUp(radio: Radio): Promise<string[]> {
     .where(
       and(
         eq(queueItems.radioId, radio.id),
-        sql`(${queueItems.status} in ('queued', 'playing') or ${queueItems.startedAt} > ${new Date(Date.now() - REPEAT_GAP_MS).toISOString()}::timestamptz)`,
+        sql`(${queueItems.status} in ('queued', 'playing')
+          or ${queueItems.startedAt} > ${new Date(Date.now() - REPEAT_GAP_MS).toISOString()}::timestamptz
+          or (${queueItems.status} = 'failed' and ${queueItems.endedAt} > ${new Date(Date.now() - FAILED_GAP_MS).toISOString()}::timestamptz))`,
       ),
     );
   const busy = new Set(busyRows.map((r) => r.id));

@@ -32,6 +32,7 @@ Feature: Queue order and Alfred, the fill-in DJ
     Then Alfred never picks a song whose last airing was voted off or skipped by an admin
     And never a song with a score of zero or less
     And never a song that aired in the last 30 minutes or is already lined up
+    And never a song that failed to download in the last hour
     And never a song longer than the station allows
     And never a second upload of a song already lined up (same title, ignoring "(Official Audio)" and the like)
 

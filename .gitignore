@@ -5,3 +5,5 @@ dist/
 .DS_Store
 .dev-credentials
 backups/
+deploy/youtube-relay/relay.env
+deploy/youtube-relay/relay.key

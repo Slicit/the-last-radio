@@ -1,0 +1,8 @@
+(^|\.)youtube\.com$
+(^|\.)youtu\.be$
+(^|\.)youtube-nocookie\.com$
+(^|\.)googlevideo\.com$
+(^|\.)ytimg\.com$
+(^|\.)ggpht\.com$
+(^|\.)googleapis\.com$
+^(www\.|consent\.|accounts\.)?google\.com$

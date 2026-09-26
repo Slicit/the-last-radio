@@ -103,6 +103,11 @@ describe("Queue order and Alfred", () => {
     for (const who of [await register("V1"), await register("V2"), await register("V3")]) {
       await db.insert(schema.skipVotes).values({ queueItemId: airing.id, userId: who.user.id });
     }
+    // "Blocked": loved, but its download just failed.
+    const blocked = await track({ title: "Blocked" });
+    await history(st.id, blocked.id, alex, { plays: 3, hoursAgo: 10 });
+    const failedAt = new Date(Date.now() - 10 * 60_000);
+    await db.insert(queueItems).values({ radioId: st.id, trackId: blocked.id, userId: null, isFill: true, status: "failed", error: "Sign in to confirm you're not a bot", createdAt: failedAt, endedAt: failedAt });
     const picks = await alfredTopUp(await radioRow(st.id));
     expect(picks.map((p) => p.replace(/ \(score .*\)$/, ""))).toEqual(["Good"]);
   });

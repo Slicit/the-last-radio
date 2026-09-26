@@ -13,6 +13,17 @@ export const YTDLP_BASE_ARGS = [
   "default,-generic",
 ];
 
+// The link or search yt-dlp works on is always the last argument.
+const YOUTUBE = /^(ytsearch\d*:|https?:\/\/([a-z0-9-]+\.)*(youtube\.com|youtu\.be|youtube-nocookie\.com)\/)/i;
+
+/**
+ * YouTube blocks many server addresses: when YOUTUBE_PROXY is set (e.g.
+ * http://10.66.0.2:8888), YouTube links and searches go through it, nothing else.
+ */
+export function proxyArgs(args: string[], proxy = process.env.YOUTUBE_PROXY ?? ""): string[] {
+  return proxy && YOUTUBE.test(args[args.length - 1] ?? "") ? ["--proxy", proxy] : [];
+}
+
 export type ProbeResult = {
   sourceKey: string;
   sourceUrl: string;
@@ -29,7 +40,7 @@ export class AbortedError extends Error {}
 export function runYtdlp(args: string[], timeoutMs: number, signal?: AbortSignal): Promise<string> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new AbortedError("aborted"));
-    const proc = spawn("yt-dlp", [...YTDLP_BASE_ARGS, ...args], {
+    const proc = spawn("yt-dlp", [...YTDLP_BASE_ARGS, ...proxyArgs(args), ...args], {
       stdio: ["ignore", "pipe", "pipe"],
     });
     // The caller went away (e.g. the user kept typing): don't burn CPU on it.

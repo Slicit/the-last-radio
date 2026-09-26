@@ -14,8 +14,8 @@ const domainSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .transform((d) => d.replace(/^\*?@/, "")) // accept "@slic.it" and "*@slic.it"
-  .pipe(z.string().regex(/^(?=.{3,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/, "Use a domain like slic.it"));
+  .transform((d) => d.replace(/^\*?@/, "")) // accept "@acme.test" and "*@acme.test"
+  .pipe(z.string().regex(/^(?=.{3,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/, "Use a domain like acme.test"));
 
 /** Admins: who may hear a private station. */
 export const stationAccessRoutes = new Hono<AppEnv>()

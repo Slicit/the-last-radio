@@ -66,14 +66,14 @@ describe("Private stations", () => {
 
   it("Letting a whole email domain in", async () => {
     const { alex, team } = await setup();
-    await call("POST", `/api/radios/${team.slug}/domains`, { cookie: alex.cookie, body: { domain: "@Slic.IT" } });
+    await call("POST", `/api/radios/${team.slug}/domains`, { cookie: alex.cookie, body: { domain: "@Acme.TEST" } });
     const reg = await call("POST", "/api/auth/register", {
-      body: { email: "vera@slic.it", password: "vera-password", displayName: "Vera", acceptPrivacy: true },
+      body: { email: "vera@acme.test", password: "vera-password", displayName: "Vera", acceptPrivacy: true },
     });
     const vera = { cookie: reg.headers.get("set-cookie")!.split(";")[0] } as Person;
     expect(reg.json.user.emailVerified).toBe(false);
     expect(await slugs(vera)).not.toContain(team.slug); // not confirmed yet
-    const token = linkFor("vera@slic.it");
+    const token = linkFor("vera@acme.test");
     expect(token).toBeTruthy();
     expect((await call("POST", "/api/auth/verify-email", { body: { token } })).status).toBe(200);
     expect(await slugs(vera)).toContain(team.slug);

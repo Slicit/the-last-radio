@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toResult } from "../../src/lib/search.js";
+import { proxyArgs } from "../../src/lib/ytdlp.js";
 
 // Fixtures trimmed from real `yt-dlp --flat-playlist -J ytsearch/scsearch` output.
 describe("search results", () => {
@@ -39,5 +40,18 @@ describe("search results", () => {
   it("skips live streams and entries without a length", () => {
     expect(toResult({ id: "x", title: "Live", duration: null }, "youtube")).toBeNull();
     expect(toResult({ id: "x", title: "Live", duration: 10, live_status: "is_live" }, "youtube")).toBeNull();
+  });
+});
+
+describe("YouTube proxy", () => {
+  const P = "http://10.66.0.2:8888";
+  it("routes only YouTube links and searches through YOUTUBE_PROXY", () => {
+    for (const target of ["ytsearch8:daft punk", "https://www.youtube.com/watch?v=abc", "https://youtu.be/abc", "https://music.youtube.com/watch?v=abc"]) {
+      expect(proxyArgs(["-J", "--", target], P)).toEqual(["--proxy", P]);
+    }
+    for (const target of ["scsearch8:daft punk", "https://soundcloud.com/a/b", "https://notyoutube.com/watch?v=abc", "https://evil.example/https://youtube.com/"]) {
+      expect(proxyArgs(["-J", "--", target], P)).toEqual([]);
+    }
+    expect(proxyArgs(["--", "https://youtu.be/abc"], "")).toEqual([]);
   });
 });

@@ -19,6 +19,21 @@ Feature: Operations
     And the audio cache stays under 2 GB, evicting the least recently played first
 
   @manual
+  Scenario: A blocked download doesn't empty the queue
+    Given a site refuses a download for a passing reason (e.g. YouTube's "confirm you're not a bot")
+    Then the song stays in line and is retried after 1 minute, then after 5, while the next songs play
+    And only after that, or at once when the song is gone for good, is it marked failed
+    # Regression 2026-09-26: YouTube blocked the production server; after a skip every YouTube
+    # song in the queue failed in turn, which looked like the skip had wiped the queue.
+
+  @manual
+  Scenario: YouTube through a relay
+    Given YouTube blocks the server's address
+    When YOUTUBE_PROXY points at a relay (deploy/youtube-relay) on a connection YouTube accepts
+    Then YouTube links, searches and downloads go through it, and every other site goes direct
+    And the relay answers only the server, only on its WireGuard tunnel, and only for YouTube's domains
+
+  @manual
   Scenario: Deploys never take the whole radio down
     When a new version is rolled out with scripts/deploy.sh
     Then the API and web restart in seconds, one at a time

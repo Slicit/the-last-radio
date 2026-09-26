@@ -98,6 +98,7 @@ Open <http://localhost:28700>, **sign up: the first account becomes the admin**,
 | `PRIVACY_CONTROLLER` / `PRIVACY_CONTACT` | unset | Who runs this radio and how to reach them, shown in the privacy notice. |
 | `REGISTRATIONS_PER_HOUR` | `5` | Sign-ups allowed per IP per hour. |
 | `SONG_CHECK_INTERVAL_DAYS` | `7` | How often each song is re-checked. |
+| `YOUTUBE_PROXY` | unset | Send YouTube (only) through a proxy, e.g. `http://10.66.0.2:8888`, when YouTube blocks the server's address. See [`deploy/youtube-relay`](deploy/youtube-relay/README.md). |
 | `SERVER_IMAGE` / `WEB_IMAGE` | built locally | Released images to run (see below). |
 
 > **Claude on the web** reaches MCP servers from the cloud, so it needs the radio on a **public HTTPS** address (a reverse proxy or a tunnel). Claude Code and local clients work on your network as is.

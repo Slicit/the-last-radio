@@ -19,6 +19,9 @@ const TICK_MS = 40;
 const HIGH_WATER = BYTES_PER_SEC * 10; // pause the decoder above this
 const LOW_WATER = BYTES_PER_SEC * 4; // resume it below this
 const PREFETCH = 2;
+// A download that fails for a passing reason (a block, a timeout) is retried
+// later instead of being dropped; the queue moves on meanwhile.
+const RETRY_DELAYS_MS = [60_000, 5 * 60_000];
 
 type Outcome = "played" | "skipped" | "failed";
 
@@ -203,12 +206,15 @@ export class Channel {
       });
 
       // An admin skip flips the row's status; poll for it while on air.
+      let finished = false;
       const watcher = setInterval(async () => {
         try {
           const row = await db.query.queueItems.findFirst({
             columns: { status: true },
             where: eq(queueItems.id, itemId),
           });
+          // A check still in flight when the song ended must not cut the next one.
+          if (finished) return;
           if (row?.status !== "playing") {
             outcome = "skipped";
             dec.kill("SIGKILL");
@@ -220,13 +226,27 @@ export class Channel {
       }, 1000);
 
       this.onDrained = () => {
+        finished = true;
         clearInterval(watcher);
         resolve(this.stopped ? "skipped" : outcome);
       };
     });
   }
 
-  private upcoming(limit: number) {
+  /** Queue items waiting to retry their download: id → attempts so far, and when to try again. */
+  private retries = new Map<string, { attempts: number; at: number }>();
+
+  /** The next songs to play, leaving out those waiting to retry. */
+  private async upcoming(limit: number) {
+    const now = Date.now();
+    // Forget items removed from the queue while they waited.
+    for (const [id, r] of this.retries) if (r.at < now - 3600_000) this.retries.delete(id);
+    const waiting = [...this.retries.values()].filter((r) => r.at > now).length;
+    const rows = await this.lineup(limit + waiting);
+    return rows.filter((r) => (this.retries.get(r.id)?.at ?? 0) <= now).slice(0, limit);
+  }
+
+  private lineup(limit: number) {
     return db
       .select({ id: queueItems.id, track: { id: tracks.id, sourceUrl: tracks.sourceUrl, title: tracks.title } })
       .from(queueItems)
@@ -332,7 +352,15 @@ export class Channel {
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           this.log(`fetch failed for "${item.track.title}": ${msg}`);
-          if (looksGone(msg)) await markUnavailable(item.track.id, msg);
+          const gone = looksGone(msg);
+          if (gone) await markUnavailable(item.track.id, msg);
+          const attempts = (this.retries.get(item.id)?.attempts ?? 0) + 1;
+          if (!gone && attempts <= RETRY_DELAYS_MS.length) {
+            this.retries.set(item.id, { attempts, at: Date.now() + RETRY_DELAYS_MS[attempts - 1] });
+            this.log(`will retry "${item.track.title}" later (attempt ${attempts + 1})`);
+            continue;
+          }
+          this.retries.delete(item.id);
           await db
             .update(queueItems)
             .set({ status: "failed", error: msg.slice(0, 500), endedAt: new Date() })
@@ -340,6 +368,7 @@ export class Channel {
           continue;
         }
 
+        this.retries.delete(item.id);
         // Claim it only now, so "now playing" never shows a track we're still fetching.
         const claimed = await db
           .update(queueItems)

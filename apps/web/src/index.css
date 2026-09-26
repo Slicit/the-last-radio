@@ -169,6 +169,25 @@
     color-scheme: light;
 }
 
+/* Light: tabs (Up next, History, Songs…) on a mint strip, the active one in
+   the dark-teal-and-green of the primary buttons, so they read at a glance. */
+:root[data-theme="light"] [data-slot="tabs-list"][data-variant="default"] {
+    background: var(--secondary);
+    border: 1px solid #8fd9bf;
+}
+:root[data-theme="light"] [data-slot="tabs-trigger"] {
+    color: #0b4f4f;
+    padding-inline: 0.625rem;
+}
+:root[data-theme="light"] [data-slot="tabs-trigger"]:hover {
+    color: var(--foreground);
+    background: #a9e6d1;
+}
+:root[data-theme="light"] [data-slot="tabs-trigger"][data-active] {
+    background: var(--primary);
+    color: var(--primary-foreground);
+}
+
 /*
  * Vintage: an old wooden radio. Sepia paper, walnut ink and buttons with
  * cream lettering, and the amber glow of a lit dial for anything live.

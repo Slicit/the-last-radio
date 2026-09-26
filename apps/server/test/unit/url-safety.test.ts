@@ -15,7 +15,7 @@ describe("Only public music links are fetched", () => {
   it.each([
     ["http://mediamtx:9997/v3/paths/list", "private address"],
     ["http://localhost:3000/", "private address"],
-    ["http://claude-machine-03.home:28732/", "private address"],
+    ["http://radio-box.home:28732/", "private address"],
     ["http://printer.local/", "private address"],
     ["http://10.0.0.5/song.mp3", "private address"],
     ["http://[::1]/", "private address"],

@@ -1,0 +1,25 @@
+# YouTube relay: lends this machine's internet connection to a radio server
+# that YouTube blocks (datacenter addresses often are), for YouTube only.
+#
+#   radio server (yt-dlp --proxy http://10.66.0.2:8888)
+#        │ WireGuard, dialled from here: nothing to open on this side's router
+#        ▼
+#   this container: tinyproxy on the tunnel address, YouTube domains only
+#        │
+#        ▼  YouTube, from this machine's address
+#
+# The server can reach nothing here but the proxy (no forwarding, the peer is
+# limited to the server's tunnel address), and the proxy only talks to YouTube.
+#
+# Setup: see README.md in this folder.
+name: youtube-relay
+
+services:
+  relay:
+    build: .
+    restart: unless-stopped
+    cap_add: [NET_ADMIN]
+    env_file: relay.env
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: "3" }
