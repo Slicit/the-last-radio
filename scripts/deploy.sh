@@ -62,4 +62,4 @@ fi
 
 docker compose ps --format "{{.Name}}\t{{.Status}}"
 # Through the web container, so it works with a host port or behind a proxy.
-if docker compose exec -T web wget -q -O /dev/null http://localhost/api/health; then echo "▸ health ok"; else echo "▸ health FAILED" >&2; exit 1; fi
+if docker compose exec -T web wget -q -O /dev/null http://127.0.0.1/api/health; then echo "▸ health ok"; else echo "▸ health FAILED" >&2; exit 1; fi

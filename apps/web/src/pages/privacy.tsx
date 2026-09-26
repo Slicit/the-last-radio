@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
  * sharing or keeping something differently, update both languages below and
  * POLICY_VERSION (here and in apps/server/src/lib/legal.ts). See CLAUDE.md.
  */
-export const POLICY_VERSION = "2026-09-26.3";
+export const POLICY_VERSION = "2026-09-26.4";
 const UPDATED = { fr: "26 septembre 2026", en: "26 September 2026" };
 
 type Legal = { policyVersion: string; controller: string | null; contact: string | null };
@@ -148,6 +148,7 @@ export function PrivacyPage() {
             <ul className="list-disc space-y-1 pl-5">
               <li><strong>Les autres auditeurs</strong> voient votre nom affiché, votre photo et les chansons que vous ajoutez.</li>
               <li><strong>Les administrateurs</strong> de la radio voient aussi votre e-mail et vos retours.</li>
+              <li><strong>Transfert d'une station</strong> : un administrateur peut exporter une station (réglages, file d'attente, historique) dans un fichier, pour la recréer sur une autre instance de The Last Radio. Ce fichier contient le nom affiché et l'e-mail des personnes qui y ont ajouté, voté ou recommandé des chansons (pas les mots de passe, photos ni retours). À l'import, vos contributions sont rattachées à votre compte sur cette instance s'il porte le même e-mail ; sinon, elles restent sous votre nom affiché, sur un compte auquel personne ne peut se connecter.</li>
               <li><strong>Envoi d'e-mails</strong> : pour vous envoyer le lien de confirmation, votre adresse est transmise au service d'envoi (SMTP) choisi par le responsable.</li>
               <li><strong>Services musicaux</strong> : notre serveur récupère les chansons auprès de YouTube, SoundCloud, Bandcamp, etc. ; votre adresse IP ne leur est pas transmise. En revanche, les <strong>vignettes</strong> des chansons sont chargées par votre navigateur directement depuis leurs serveurs (Google/YouTube, SoundCloud), qui reçoivent alors votre adresse IP et peuvent être situés hors de l'Union européenne.</li>
               <li><strong>Assistants IA</strong> que vous connectez : ce que nos outils leur renvoient est traité par leur éditeur selon sa propre politique.</li>
@@ -247,6 +248,7 @@ export function PrivacyPage() {
             <ul className="list-disc space-y-1 pl-5">
               <li><strong>Other listeners</strong> see your display name, photo and the songs you add.</li>
               <li><strong>The radio's admins</strong> also see your email and your feedback.</li>
+              <li><strong>Moving a station</strong>: an admin can export a station (settings, queue, history) to a file, to recreate it on another instance of The Last Radio. The file holds the display name and email of the people who added, voted on or upvoted its songs (no passwords, photos or feedback). On import, your contributions are linked to your account on that instance if it has the same email; otherwise they stay under your display name, on an account nobody can sign in to.</li>
               <li><strong>Email delivery</strong>: to send your confirmation link, your address is passed to the mail (SMTP) service the controller chose.</li>
               <li><strong>Music services</strong>: our server fetches songs from YouTube, SoundCloud, Bandcamp and others; your IP address isn't passed on. Song <strong>thumbnails</strong>, however, are loaded by your browser straight from their servers (Google/YouTube, SoundCloud), which then receive your IP address and may be outside the European Union.</li>
               <li><strong>AI assistants</strong> you connect: what our tools return to them is handled by their provider under its own policy.</li>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { Link, Navigate, useBlocker, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Bot, Clock, Lock, ListMusic, Settings2, ExternalLink } from "lucide-react";
+import { ArrowLeft, Bot, Clock, Download, Lock, ListMusic, Settings2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -227,9 +227,19 @@ export function StationEditorPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-3xl font-bold tracking-tight">{isNew ? "New station" : form.name || "Station"}</h1>
           {!isNew && (
-            <Link to={`/r/${slug}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-              Open the station <ExternalLink className="size-3.5" />
-            </Link>
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <a
+                href={`/api/radios/${slug}/export`}
+                download
+                title="Settings, who may listen, the queue and the whole history, in one file to import here or on another radio"
+                className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+              >
+                Export <Download className="size-3.5" />
+              </a>
+              <Link to={`/r/${slug}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
+                Open the station <ExternalLink className="size-3.5" />
+              </Link>
+            </div>
           )}
         </div>
         <p className="text-sm text-muted-foreground">Listeners find it at /r/{form.slug || "…"}</p>

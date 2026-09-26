@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, Navigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Lock, Pencil, Plus } from "lucide-react";
+import { FileUp, Lock, Pencil, Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { OnAir } from "@/components/on-air";
 import { Pager } from "@/components/pager";
 import { FeedbackAdmin } from "@/components/feedback-admin";
+import { StationImportDialog } from "@/components/station-import-dialog";
 import { useMe } from "@/hooks/use-auth";
 import { useRadios, useStream } from "@/hooks/use-radio";
 import { api, type AdminUser, type Role } from "@/lib/api";
@@ -47,6 +48,7 @@ function StreamCell({ slug, active }: { slug: string; active: boolean }) {
 
 function RadiosAdmin() {
   const { data: radios, isLoading } = useRadios();
+  const [importing, setImporting] = useState(false);
 
   return (
     <Card>
@@ -55,9 +57,15 @@ function RadiosAdmin() {
           <CardTitle>Stations</CardTitle>
           <CardDescription>Each active station runs its own stream. Disabling one takes it off the air.</CardDescription>
         </div>
-        <Link to="/admin/stations/new" className={buttonVariants()}>
-          <Plus /> New station
-        </Link>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={() => setImporting(true)}>
+            <FileUp /> Import
+          </Button>
+          <Link to="/admin/stations/new" className={buttonVariants()}>
+            <Plus /> New station
+          </Link>
+        </div>
+        <StationImportDialog open={importing} onOpenChange={setImporting} />
       </CardHeader>
       <CardContent>
         {isLoading ? (

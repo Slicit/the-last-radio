@@ -14,6 +14,11 @@ import { songCount, songRecords } from "../lib/track-stats.js";
 import { offsetOf, pageOf, pagingQuery } from "../lib/paging.js";
 import * as svc from "../services/radio.js";
 import { removeUpvote, upvote } from "../lib/upvotes.js";
+import { bodyLimit } from "hono/body-limit";
+import { exportStation, importStation, stationFile } from "../lib/station-transfer.js";
+
+// A station's file can hold years of history; this is the one big JSON body we take.
+export const IMPORT_MAX_BYTES = 50 * 1024 * 1024;
 
 const { radios } = schema;
 
@@ -80,6 +85,32 @@ export const radioRoutes = new Hono<AppEnv>()
     const [created] = await db.insert(radios).values(c.req.valid("json")).onConflictDoNothing().returning();
     if (!created) throw new HTTPException(409, { message: "That slug is taken" });
     return c.json({ radio: svc.publicRadio(created) }, 201);
+  })
+
+  // Recreate a station from an export file (see lib/station-transfer.ts).
+  .post(
+    "/import",
+    requireAdmin,
+    bodyLimit({ maxSize: IMPORT_MAX_BYTES, onError: (c) => c.json({ error: "That file is over 50 MB" }, 413) }),
+    zValidator("query", z.object({ slug: slugSchema.optional(), name: radioFields.name.optional() })),
+    zValidator("json", stationFile),
+    async (c) => {
+      const file = c.req.valid("json");
+      const q = c.req.valid("query");
+      const slug = slugSchema.safeParse(q.slug ?? file.station.slug);
+      if (!slug.success) throw new HTTPException(400, { message: "Choose a slug for the station" });
+      const { radio, summary } = await importStation(file, { slug: slug.data, name: q.name });
+      return c.json({ radio: svc.publicRadio(radio), summary }, 201);
+    },
+  )
+
+  .get("/:slug/export", requireAdmin, async (c) => {
+    const radio = await svc.getRadio(c.req.param("slug"));
+    const file = await exportStation(radio);
+    const day = file.exportedAt.slice(0, 10);
+    c.header("Content-Disposition", `attachment; filename="${radio.slug}-${day}.lastradio.json"`);
+    c.header("Cache-Control", "no-store");
+    return c.json(file);
   })
 
   .get("/:slug", requireScope("radio:read"), async (c) => {

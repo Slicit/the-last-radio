@@ -5,6 +5,7 @@ import { registerBody, loginBody } from "../routes/auth.js";
 import { createRadioBody, updateRadioBody, pushBody } from "../routes/radios.js";
 import { postBody as feedbackBody } from "../routes/feedback.js";
 import { registerBody as oauthRegisterBody, keyBody } from "../routes/oauth.js";
+import { stationFile } from "./station-transfer.js";
 
 /**
  * The REST API as OpenAPI 3.1, served at /api/openapi.json. Request bodies
@@ -118,6 +119,8 @@ const ops: Record<string, Op> = {
       queueTotal: int, queueDurationSec: int, queuedKeys: { type: "array", items: str }, quota: nullable(ref("Quota")), listeners: int, serverTime: time,
     }),
   },
+  "GET /api/radios/{slug}/export": { summary: "Export a station: settings, access, songs, history and votes, as one file", tag: "Stations", auth: "admin", ok: schema(stationFile), description: "Downloaded as <slug>-<date>.lastradio.json. It names the people in the history, with their emails, so they can be matched on import: keep it safe." },
+  "POST /api/radios/import": { summary: "Recreate a station from an export file", tag: "Stations", auth: "admin", query: { slug: { ...str, description: "Slug for the new station (default: the file's)" }, name: { ...str, description: "Name for the new station (default: the file's)" } }, body: schema(stationFile), okStatus: 201, ok: obj({ radio: ref("Radio"), summary: obj({ songs: int, newSongs: int, plays: int, queued: int, people: obj({ matched: int, placeholders: int }), downvotes: int, upvotes: int }) }), description: "Always creates a new station (409 if the slug is taken). Songs already known here are reused; people are matched to accounts by email, others keep their name on a placeholder that can't sign in. Up to 50 MB." },
   "PATCH /api/radios/{slug}": { summary: "Edit a station", tag: "Stations", auth: "admin", body: schema(updateRadioBody), ok: obj({ radio: ref("Radio") }) },
   "GET /api/radios/{slug}/queue": { summary: "What's lined up, in play order", tag: "Stations", auth: "read", query: paging, ok: { allOf: [page(ref("QueueItem")), obj({ totalDurationSec: int })] } },
   "GET /api/radios/{slug}/history": { summary: "What has aired, newest first", tag: "Stations", auth: "read", query: paging, ok: page(ref("QueueItem")) },

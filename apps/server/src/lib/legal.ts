@@ -4,7 +4,7 @@
  * changes; everyone is then asked to acknowledge it again at sign-in.
  * See CLAUDE.md, "Privacy notice".
  */
-export const POLICY_VERSION = "2026-09-26.3";
+export const POLICY_VERSION = "2026-09-26.4";
 
 /**
  * Fingerprint of every table and column in the database. A test recomputes

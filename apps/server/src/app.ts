@@ -44,9 +44,12 @@ export function createApp({ log = true } = {}) {
   if (log) app.use(logger());
   app
     // Nothing we accept is large; refuse big bodies before parsing them. The
-    // avatar upload is the one exception and sets its own (5 MB) limit.
+    // avatar upload (5 MB) and station import (50 MB) set their own limits.
     .use(async (c, next) =>
-      c.req.method === "PUT" && c.req.path === "/api/me/avatar" ? next() : smallBodies(c, next),
+      (c.req.method === "PUT" && c.req.path === "/api/me/avatar") ||
+      (c.req.method === "POST" && c.req.path === "/api/radios/import")
+        ? next()
+        : smallBodies(c, next),
     )
     // A generous ceiling per IP across everything; routes add tighter ones.
     .use(rateLimit({ limit: 600, windowMs: 60_000, message: "Too many requests." }))

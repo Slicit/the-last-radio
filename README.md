@@ -40,6 +40,7 @@ private, open only in the evening), and let your AI assistant add songs for you.
 ### Stations
 - **As many stations as you want**, each with its own rules: song limits, maximum length, vote threshold, Alfred's threshold.
 - **Broadcast hours** in the station's timezone (e.g. weekdays 8:00–18:00, or Friday nights 22:00–02:00). The song on air at closing finishes; the queue waits for the next opening.
+- **Move a station** between radios (say, from a test server to the real one): *Export* saves its settings, access rules, queue, full history and votes to one file; *Import* recreates it elsewhere, matching people to their accounts by email.
 - **Private stations** for a team or a family: add people by email, or let in everyone with a **confirmed** address at a domain (`@example.com`). Private audio is protected too, not just the page.
 
 ### Your AI, your scripts
