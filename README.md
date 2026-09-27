@@ -152,7 +152,7 @@ scripts/deploy.sh --pull    # or run released images (SERVER_IMAGE / WEB_IMAGE)
 
 The deploy script **backs up the database first** (`backups/`, last 10 kept), then restarts one service at a time: the API (which applies any new migrations) and the web in seconds, then the broadcaster, which **lets the song on air finish**. Your data lives in the `lastradio-pgdata` volume, which updates never touch; migrations only ever move forward.
 
-Releases: push a tag like `v1.2.0` and GitHub Actions publishes `ghcr.io/slicit/the-last-radio-server` and `-web` (`1.2.0`, `1.2`, `latest`).
+Images: once the tests pass, GitHub Actions publishes `ghcr.io/slicit/the-last-radio-server` and `-web`: every push to `main` as `:main` (and `:sha-<commit>`), and a tag like `v1.2.0` as `:1.2.0`, `:1.2` and `:latest`. To run them, set `SERVER_IMAGE=ghcr.io/slicit/the-last-radio-server:1.2.0` and `WEB_IMAGE=…-web:1.2.0` in `.env`, then `scripts/deploy.sh --pull`.
 
 ---
 
@@ -189,7 +189,7 @@ scripts/test.sh unit        # or one layer: unit | integration | e2e
 - **Behaviour specs** live in [`specs/features`](specs/features) (Gherkin), one feature per journey. Tests reuse the scenario titles, so every behaviour points to the test that proves it.
 - **Unit** and **integration** tests use Vitest; integration tests run the real API against Postgres. **End-to-end** tests drive the real app in Firefox with Playwright, including a real email round-trip through Mailpit.
 - The test stack (`lastradio-test`) is a separate copy with its own containers, network, volumes and ports: tests never touch a running radio.
-- CI (GitHub Actions) runs everything on each push, and refuses changes to released migrations.
+- CI (GitHub Actions) runs everything on each push, refuses changes to released migrations, and publishes the images when the tests pass.
 
 Project rules for contributors, human or AI, are in [`CLAUDE.md`](CLAUDE.md), notably: **keep the privacy notice true** (a test fails when the database schema changes until the notice has been reviewed).
 
