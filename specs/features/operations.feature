@@ -16,7 +16,7 @@ Feature: Operations
   @manual
   Scenario: Tracks are fetched ahead of time
     Then the next two songs are downloaded while the current one plays
-    And the audio cache stays under 2 GB, evicting the least recently played first
+    And the audio cache stays under CACHE_SIZE_GB (2 GB by default), evicting the least recently played first
 
   @manual
   Scenario: A blocked download doesn't empty the queue

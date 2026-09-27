@@ -68,6 +68,7 @@ services:
       MAIL_RETURN_PATH: ${MAIL_RETURN_PATH:-}
       YOUTUBE_PROXY: ${YOUTUBE_PROXY:-}
       CACHE_DIR: /data/cache
+      CACHE_SIZE_GB: ${CACHE_SIZE_GB:-2}
     depends_on:
       postgres: { condition: service_healthy }
     restart: unless-stopped
