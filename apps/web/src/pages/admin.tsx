@@ -13,6 +13,7 @@ import { Pager } from "@/components/pager";
 import { FeedbackAdmin } from "@/components/feedback-admin";
 import { StationImportDialog } from "@/components/station-import-dialog";
 import { ListenerStatsAdmin } from "@/components/listener-stats";
+import { SiteSettingsAdmin } from "@/components/site-settings-admin";
 import { useMe } from "@/hooks/use-auth";
 import { useRadios, useStream } from "@/hooks/use-radio";
 import { api, type AdminUser, type Role } from "@/lib/api";
@@ -29,6 +30,7 @@ export function AdminPage() {
       <ListenerStatsAdmin />
       <RadiosAdmin />
       <UsersAdmin selfId={user.id} />
+      <SiteSettingsAdmin />
     </div>
   );
 }

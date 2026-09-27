@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Theme, type User } from "@/lib/api";
 import { useMe } from "@/hooks/use-auth";
 
@@ -27,15 +27,23 @@ function storedTheme(): Theme {
   }
 }
 
+export type SiteSettings = { defaultTheme: Theme };
+
+/** Radio-wide settings anyone can read (the default theme). */
+export const useSiteSettings = () =>
+  useQuery({ queryKey: ["settings"], queryFn: () => api.get<SiteSettings>("/settings"), staleTime: 5 * 60_000 });
+
 /**
- * The UI theme. Signed-in people carry it on their account (so it follows them
- * between devices); everyone else keeps it in this browser.
+ * The UI theme. Signed-in people carry theirs on their account (so it follows
+ * them between devices); guests see the radio's default, chosen by the admins.
+ * The theme last shown is kept in this browser so the next visit paints it at once.
  */
 export function useTheme() {
   const { user } = useMe();
   const qc = useQueryClient();
+  const site = useSiteSettings();
   const [local, setLocal] = useState<Theme>(storedTheme);
-  const theme: Theme = user?.theme ?? local;
+  const theme: Theme = user?.theme ?? site.data?.defaultTheme ?? local;
 
   useEffect(() => applyTheme(theme), [theme]);
 

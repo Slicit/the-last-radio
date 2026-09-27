@@ -9,8 +9,15 @@ Feature: Profile and appearance
       | Night   | dark, the default                                                    |
       | Light   | after Pennylane: teal ink, mint surfaces, green accents, Manrope      |
       | Vintage | an old wooden radio: sepia paper, walnut, an amber dial glow, Fraunces |
-    And it stays PL on Sam's other devices
-    And signed-out visitors keep their choice in this browser
+    And it stays that way on Sam's other devices
+
+  @e2e @integration
+  Scenario: The radio's default theme
+    Given Alex is an admin
+    When Alex picks a theme under "Default theme" in Admin
+    Then signed-out visitors see the radio in it
+    And new accounts start with it
+    But people who already have an account keep the theme they have
 
   @manual
   Scenario: No flash of the wrong theme

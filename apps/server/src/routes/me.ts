@@ -12,9 +12,10 @@ import { publicUrl } from "../lib/public-url.js";
 import { AVATAR_MAX_BYTES, processAvatar } from "../lib/avatar.js";
 import { rateLimit } from "../lib/rate-limit.js";
 import { zValidator } from "../lib/validate.js";
+import { THEMES } from "../lib/settings.js";
 
 const { users, avatars, sessions, apiTokens, oauthCodes, oauthClients, feedback, feedbackVotes, queueItems, tracks, radios, skipVotes, radioMembers, emailTokens, songUpvotes } = schema;
-export const THEMES = ["night", "light", "vintage"] as const;
+export { THEMES };
 
 const perUser = (limit: number, windowMs: number, message: string) =>
   rateLimit({ limit, windowMs, message, key: (c) => c.get("user")?.id ?? null });

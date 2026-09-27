@@ -15,6 +15,7 @@ import {
 import { POLICY_VERSION } from "../lib/legal.js";
 import { RateLimiter, rateLimit, tooMany } from "../lib/rate-limit.js";
 import { confirmVerification, sendVerification } from "../lib/verify-email.js";
+import { getSettings } from "../lib/settings.js";
 import { publicUrl } from "../lib/public-url.js";
 
 const email = z.string().trim().toLowerCase().email().max(254);
@@ -60,6 +61,8 @@ export const authRoutes = new Hono<AppEnv>()
           privacyAckVersion: POLICY_VERSION,
           privacyAckAt: new Date(),
           role: count === 0 ? "admin" : "player",
+          // New accounts start in the theme the admins chose for the radio.
+          theme: (await getSettings()).defaultTheme,
         })
         .returning();
       return created;

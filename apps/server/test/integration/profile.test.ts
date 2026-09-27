@@ -30,6 +30,22 @@ describe("Profile and appearance", () => {
     expect((await call("PATCH", "/api/me", { cookie: sam.cookie, body: { theme: "hacker" } })).status).toBe(400);
   });
 
+  it("The radio's default theme", async () => {
+    const alex = await register("Alex"); // first account: admin
+    const sam = await register("Sam");
+    expect((await call("GET", "/api/settings")).json).toEqual({ defaultTheme: "night" });
+    const set = await call("PATCH", "/api/admin/settings", { cookie: alex.cookie, origin: ORIGIN, body: { defaultTheme: "light" } });
+    expect(set.json).toEqual({ defaultTheme: "light" });
+    expect((await call("GET", "/api/settings")).json).toEqual({ defaultTheme: "light" }); // what guests get
+    const kim = await register("Kim");
+    expect(kim.user).toMatchObject({ theme: "light" }); // new accounts start with it
+    const me = await call("GET", "/api/auth/me", { cookie: sam.cookie });
+    expect(me.json.user.theme).toBe("night"); // existing accounts keep theirs
+    // Admins only, from the website, and only known themes.
+    expect((await call("PATCH", "/api/admin/settings", { cookie: sam.cookie, origin: ORIGIN, body: { defaultTheme: "vintage" } })).status).toBe(403);
+    expect((await call("PATCH", "/api/admin/settings", { cookie: alex.cookie, origin: ORIGIN, body: { defaultTheme: "hacker" } })).status).toBe(400);
+  });
+
   it("Setting a profile photo", async () => {
     const sam = await register("Sam");
     const up = await upload(sam, await photo());

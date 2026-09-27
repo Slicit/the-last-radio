@@ -10,6 +10,7 @@ import {
   uniqueIndex,
   primaryKey,
   customType,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -334,6 +335,15 @@ export const listenerSamples = pgTable(
   },
   (t) => [primaryKey({ columns: [t.radioId, t.at] }), index("listener_samples_at_idx").on(t.at)],
 );
+
+// ---------------------------------------------------------------- site settings
+
+// Radio-wide settings admins change from the website (e.g. the default theme).
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export type User = typeof users.$inferSelect;
 export type Radio = typeof radios.$inferSelect;

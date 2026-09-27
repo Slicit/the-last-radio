@@ -11,7 +11,7 @@ export const POLICY_VERSION = "2026-09-26.5";
  * it: when the schema changes, the test fails until someone has checked the
  * privacy notice still describes what we store, then updates this value.
  */
-export const DATA_INVENTORY_HASH = "129deb59f10e7774";
+export const DATA_INVENTORY_HASH = "825aa32bfee79401";
 
 export const legalInfo = () => ({
   policyVersion: POLICY_VERSION,

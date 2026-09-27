@@ -92,6 +92,13 @@
       "when": 1790511627602,
       "tag": "0012_track_previews",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790527691775,
+      "tag": "0013_app_settings",
+      "breakpoints": true
     }
   ]
 }

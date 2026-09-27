@@ -1,4 +1,4 @@
-import { asPlayer, expect, test } from "./fixtures";
+import { asAdmin, asPlayer, expect, test } from "./fixtures";
 import { PLAYER } from "../global-setup";
 import { deflateSync } from "node:zlib";
 
@@ -66,4 +66,23 @@ test("Setting a profile photo", async ({ page }) => {
   await expect(page.locator('header img[src^="/api/avatars/"]')).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "Remove" }).click();
   await expect(page.locator('header img[src^="/api/avatars/"]')).toHaveCount(0);
+});
+
+test("The radio's default theme", async ({ browser }) => {
+  const admin = await (await browser.newContext(asAdmin)).newPage();
+  try {
+    await admin.goto("/admin");
+    const choice = admin.getByRole("radiogroup", { name: "Default theme" });
+    await choice.getByRole("radio", { name: /Vintage/ }).click();
+    await expect(admin.getByText("Default theme: Vintage")).toBeVisible();
+    await expect(choice.getByRole("radio", { name: /Vintage/ })).toHaveAttribute("aria-checked", "true");
+
+    // A signed-out visitor sees it (a fresh browser, nothing stored).
+    const guest = await (await browser.newContext({ storageState: { cookies: [], origins: [] } })).newPage();
+    await guest.goto("/");
+    await expect(guest.locator("html")).toHaveAttribute("data-theme", "vintage");
+  } finally {
+    // Leave the radio as the other tests expect it.
+    await admin.request.patch("/api/admin/settings", { data: { defaultTheme: "night" } });
+  }
 });
