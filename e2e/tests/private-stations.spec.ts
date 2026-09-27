@@ -13,6 +13,8 @@ async function confirmationLink(request: import("@playwright/test").APIRequestCo
       if (!id) return undefined;
       const msg = await (await request.get(`${MAILPIT}/api/v1/message/${id}`)).json();
       link = String(msg.Text).match(/https?:\/\/\S+\/verify-email\?token=[\w-]+/)?.[0];
+      // The HTML version carries the same link behind a button.
+      if (link) expect(String(msg.HTML)).toContain(`href="${link}"`);
       return link;
     }, { timeout: 20_000 })
     .toBeTruthy();

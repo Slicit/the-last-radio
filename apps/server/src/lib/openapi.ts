@@ -24,7 +24,7 @@ const bool = { type: "boolean" };
 const nullable = (t: Json) => ({ anyOf: [t, { type: "null" }] });
 const time = { type: "string", format: "date-time" };
 
-const Track = obj({ id: str, title: str, artist: nullable(str), durationSec: nullable(int), thumbnailUrl: nullable(str), sourceUrl: str, sourceKey: str, unavailable: bool }, ["id", "title", "sourceUrl", "sourceKey"]);
+const Track = obj({ id: str, title: str, artist: nullable(str), durationSec: nullable(int), thumbnailUrl: nullable(str), sourceUrl: str, sourceKey: str, unavailable: bool, isPreview: { ...bool, description: "Only a 30-second sample can be played (SoundCloud previews)" } }, ["id", "title", "sourceUrl", "sourceKey"]);
 const QueueItem = obj(
   {
     id: str,

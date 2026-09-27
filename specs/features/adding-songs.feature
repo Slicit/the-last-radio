@@ -38,6 +38,15 @@ Feature: Adding songs
     And the choice is remembered in this browser
     And a SoundCloud song picked from the results is added instantly, and recognised as the same song if its link is pasted later
 
+  @unit @integration @e2e
+  Scenario: SoundCloud samples are marked
+    Given SoundCloud only lets us play a 30-second preview of "Get Lucky" (a Go+ song)
+    Then it shows a bright "SAMPLE" pill in search results, now playing, the player bar, Up next, History and Songs
+    And hovering it says only 30 seconds of the song can be played
+    And AI assistants are told it's only a 30-second sample
+    # Search results only carry the length (samples are exactly 30 s); a pasted link is checked
+    # by its formats (SoundCloud offers only "…_preview" ones for samples).
+
   @unit @e2e
   Scenario: Search still answers when YouTube can't be reached
     Given YouTube is reached through a proxy (YOUTUBE_PROXY) that is down, or a YouTube search fails

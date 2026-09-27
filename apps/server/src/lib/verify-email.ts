@@ -2,6 +2,7 @@ import { and, eq, gt, lt } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { randomToken, sha256 } from "./tokens.js";
 import { MailRateLimited, mailConfigured, recipientLimiter, sendMail } from "./mail.js";
+import { confirmationEmail } from "./emails.js";
 
 const { emailTokens, users } = schema;
 const TTL_MS = 24 * 3600_000;
@@ -16,11 +17,7 @@ export async function sendVerification(user: { id: string; email: string; displa
   await db.delete(emailTokens).where(lt(emailTokens.expiresAt, new Date()));
   await db.insert(emailTokens).values({ tokenHash: sha256(token), userId: user.id, email: user.email, expiresAt: new Date(Date.now() + TTL_MS) });
   const link = `${baseUrl}/verify-email?token=${token}`;
-  await sendMail({
-    to: user.email,
-    subject: "Confirm your email for The Last Radio",
-    text: `Hi ${user.displayName},\n\nConfirm this address to join private stations that your email domain opens:\n\n${link}\n\nThe link works once, for 24 hours. If you didn't sign up, ignore this message.\n`,
-  });
+  await sendMail({ to: user.email, ...confirmationEmail({ name: user.displayName, email: user.email, link, baseUrl }) });
   return true;
 }
 

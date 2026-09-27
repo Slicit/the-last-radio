@@ -18,6 +18,9 @@ describe("MCP text formatting", () => {
     const track = { title: "Feeling Good", artist: "Nina Simone", durationSec: 183 };
     expect(itemLine({ isFill: true, track, pushedBy: null })).toBe('"Feeling Good" by Nina Simone (3:03), added by Alfred (the auto-DJ)');
     expect(itemLine({ isFill: false, track, pushedBy: { displayName: "Sam" } })).toContain("added by Sam");
+    expect(itemLine({ isFill: false, track: { ...track, durationSec: 30, isPreview: true }, pushedBy: { displayName: "Sam" } })).toBe(
+      '"Feeling Good" by Nina Simone (only a 30-second SAMPLE), added by Sam',
+    );
   });
 
   it("says when a closed station opens", () => {

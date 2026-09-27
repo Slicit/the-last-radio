@@ -57,7 +57,7 @@ const ORDER: Record<SongSort, ReturnType<typeof sql>> = {
 export async function songRecords(radioId: string, sort: SongSort = "played", limit = 200, offset = 0): Promise<SongRecord[]> {
   const rows = await db.execute<Record<string, unknown>>(sql`
     select
-      t.id, t.title, t.artist, t.duration_sec, t.thumbnail_url, t.source_url, t.source_key, t.unavailable_at,
+      t.id, t.title, t.artist, t.duration_sec, t.thumbnail_url, t.source_url, t.source_key, t.unavailable_at, t.is_preview,
       count(*) filter (where qi.status = 'played')::int as plays,
       count(*) filter (where qi.status = 'played' and not qi.is_fill)::int as plays_by_people,
       count(*) filter (where qi.status = 'played' and qi.is_fill)::int as plays_by_alfred,
@@ -92,6 +92,7 @@ export async function songRecords(radioId: string, sort: SongSort = "played", li
         thumbnailUrl: (r.thumbnail_url as string | null) ?? null,
         sourceUrl: r.source_url as string,
         sourceKey: r.source_key as string,
+        isPreview: !!r.is_preview,
       },
       plays: r.plays as number,
       playsByPeople: r.plays_by_people as number,

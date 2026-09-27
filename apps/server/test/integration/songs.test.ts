@@ -84,3 +84,23 @@ describe("Adding songs", () => {
     expect((await add(alex, st.slug, (await track()).id)).json.position).toBe(2);
   });
 });
+
+// specs/features/adding-songs.feature
+describe("SoundCloud samples", () => {
+  it("SoundCloud samples are marked", async () => {
+    const alex = await register("Alex");
+    const st = await createStation(alex);
+    const sample = await track({ sourceKey: "Soundcloud:30s", sourceUrl: "https://soundcloud.com/x/sample", title: "Get Lucky", durationSec: 30, isPreview: true });
+    const full = await track({ title: "Full song" });
+    expect((await add(alex, st.slug, sample.id)).status).toBe(201);
+    expect((await add(alex, st.slug, full.id)).status).toBe(201);
+    const queue = (await call("GET", `/api/radios/${st.slug}/queue`)).json.items;
+    expect(queue.map((q: any) => [q.track.title, q.track.isPreview])).toEqual([["Get Lucky", true], ["Full song", false]]);
+    // Song records and exports keep it too.
+    await db.update(schema.queueItems).set({ status: "played", startedAt: new Date(), endedAt: new Date() });
+    const songs = (await call("GET", `/api/radios/${st.slug}/songs`)).json.items;
+    expect(songs.find((s: any) => s.track.title === "Get Lucky").track.isPreview).toBe(true);
+    const file = (await call("GET", `/api/radios/${st.slug}/export`, { cookie: alex.cookie })).json;
+    expect(file.songs.find((s: any) => s.title === "Get Lucky").isPreview).toBe(true);
+  });
+});

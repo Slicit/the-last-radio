@@ -78,3 +78,24 @@ test("Search still answers when YouTube can't be reached", async ({ page }) => {
   await expect(page.getByRole("status").filter({ hasText: "YouTube isn't reachable right now" })).toBeVisible();
   await expect(page.getByRole("option", { name: /Fallback Song/ })).toBeVisible();
 });
+
+test("SoundCloud samples are marked", async ({ page }) => {
+  await page.route("**/api/search?**", (r) =>
+    r.fulfill({
+      json: {
+        source: "soundcloud",
+        results: [
+          { videoId: "1", sourceKey: "Soundcloud:e2e-sample", sourceUrl: "https://soundcloud.com/e2e/sample", title: "Only A Taste", artist: "E2E", durationSec: 30, thumbnailUrl: null, views: null, source: "soundcloud", isPreview: true },
+          { videoId: "2", sourceKey: "Soundcloud:e2e-full", sourceUrl: "https://soundcloud.com/e2e/full", title: "The Whole Thing", artist: "E2E", durationSec: 240, thumbnailUrl: null, views: null, source: "soundcloud", isPreview: false },
+        ],
+      },
+    }),
+  );
+  await page.goto("/r/e2e-main");
+  await page.getByRole("radio", { name: "SoundCloud" }).click();
+  await page.getByRole("combobox", { name: "Search for a song" }).fill("taste");
+  const sample = page.getByRole("option", { name: /Only A Taste/ });
+  await expect(sample.getByLabel("Sample: only 30 seconds play")).toBeVisible();
+  await expect(sample.getByText("Sample")).toHaveAttribute("title", /30-second sample/);
+  await expect(page.getByRole("option", { name: /The Whole Thing/ }).getByLabel("Sample: only 30 seconds play")).toHaveCount(0);
+});

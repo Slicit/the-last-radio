@@ -104,6 +104,8 @@ export const tracks = pgTable("tracks", {
   checkedAt: timestamp("checked_at", { withTimezone: true }),
   unavailableAt: timestamp("unavailable_at", { withTimezone: true }),
   unavailableReason: text("unavailable_reason"),
+  // Only a 30-second sample can be played (SoundCloud's previews of Go+ songs).
+  isPreview: boolean("is_preview").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

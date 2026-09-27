@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toResult } from "../../src/lib/search.js";
-import { proxyArgs } from "../../src/lib/ytdlp.js";
+import { previewOnly, proxyArgs } from "../../src/lib/ytdlp.js";
 
 // Fixtures trimmed from real `yt-dlp --flat-playlist -J ytsearch/scsearch` output.
 describe("search results", () => {
@@ -34,7 +34,21 @@ describe("search results", () => {
       sourceUrl: "https://soundcloud.com/daftpunkofficialmusic/around-the-world",
       artist: "Daft Punk",
       thumbnailUrl: "https://i1.sndcdn.com/artworks-rwpRsmvbyYhb-0-t300x300.jpg",
+      isPreview: false,
     });
+  });
+
+  // specs/features/adding-songs.feature: "SoundCloud samples are marked"
+  it("marks SoundCloud's 30-second samples", () => {
+    // Real: SoundCloud search reports Go+ songs it only previews as exactly 30 s.
+    const entry = { id: "1", title: "Get Lucky", uploader: "Daft Punk", duration: 30.0, webpage_url: "https://soundcloud.com/daftpunkofficialmusic/get-lucky" };
+    expect(toResult(entry, "soundcloud")?.isPreview).toBe(true);
+    expect(toResult({ ...entry, duration: 246.381 }, "soundcloud")?.isPreview).toBe(false);
+    expect(toResult({ ...entry, duration: 30 }, "youtube")?.isPreview).toBe(false); // YouTube has no samples
+    // A pasted link reads the formats: SoundCloud offers only "…_preview" ones for samples.
+    expect(previewOnly([{ format_id: "hls_mp3_1_0_preview" }, { format_id: "http_mp3_1_0_preview" }])).toBe(true);
+    expect(previewOnly([{ format_id: "hls_mp3_0_0" }, { format_id: "http_mp3_0_0" }, { format_id: "hls_aac_96k" }])).toBe(false);
+    expect(previewOnly([])).toBe(false);
   });
 
   it("skips live streams and entries without a length", () => {

@@ -35,6 +35,7 @@ export function toResult(e: any, source: SearchSource): SearchResult | null {
     durationSec: Math.round(e.duration),
     views: typeof e.view_count === "number" ? e.view_count : null,
     source,
+    isPreview: false,
   };
   if (source === "youtube") {
     return {
@@ -55,6 +56,8 @@ export function toResult(e: any, source: SearchSource): SearchResult | null {
     artist: typeof e.uploader === "string" ? e.uploader : null,
     // SoundCloud's "-original" artwork can be huge; its 300px variant is plenty.
     thumbnailUrl: art ? art.replace(/-original\.(\w+)$/, "-t300x300.$1") : null,
+    // Search results only carry the length: previews of Go+ songs are exactly 30 s.
+    isPreview: Math.abs(e.duration - 30) < 0.5,
   };
 }
 

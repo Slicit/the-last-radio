@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrackArt } from "@/components/track-art";
+import { SampleBadge } from "@/components/sample-badge";
 import { AddAgain, type Lineup } from "@/components/add-again";
 import { UpvoteButton } from "@/components/upvote-button";
 import { useSongs } from "@/hooks/use-radio";
@@ -88,14 +89,17 @@ export function SongsList({ slug, lineup }: { slug: string; lineup: Lineup }) {
                   </span>
                   <TrackArt src={s.track.thumbnailUrl} className="size-11" />
                   <div className="min-w-0 flex-1">
-                    <a
-                      href={s.track.sourceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block truncate text-sm font-medium hover:underline"
-                    >
-                      {s.track.title}
-                    </a>
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      {s.track.isPreview && <SampleBadge />}
+                      <a
+                        href={s.track.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block truncate text-sm font-medium hover:underline"
+                      >
+                        {s.track.title}
+                      </a>
+                    </div>
                     <div className="truncate text-xs text-muted-foreground">
                       {s.downvotes > 0 && sort === "downvoted" && (
                         <ThumbsDown className="mr-1 inline size-3 align-[-2px]" />

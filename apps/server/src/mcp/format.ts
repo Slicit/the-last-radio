@@ -32,7 +32,7 @@ export function nextOpeningText(h: HoursStatus): string {
 
 type Item = {
   isFill: boolean;
-  track: { title: string; artist: string | null; durationSec: number | null };
+  track: { title: string; artist: string | null; durationSec: number | null; isPreview?: boolean };
   pushedBy: { displayName: string } | null;
 };
 
@@ -40,5 +40,6 @@ type Item = {
 export function itemLine(i: Item): string {
   const by = i.isFill || !i.pushedBy ? "Alfred (the auto-DJ)" : i.pushedBy.displayName;
   const artist = i.track.artist ? ` by ${i.track.artist}` : "";
-  return `"${i.track.title}"${artist} (${fmtDuration(i.track.durationSec ?? 0)}), added by ${by}`;
+  const length = i.track.isPreview ? "only a 30-second SAMPLE" : fmtDuration(i.track.durationSec ?? 0);
+  return `"${i.track.title}"${artist} (${length}), added by ${by}`;
 }

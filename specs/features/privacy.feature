@@ -38,7 +38,9 @@ Feature: Privacy
   Scenario: Deleting my account
     When Sam clicks "Delete my account" and confirms with the password
     Then Sam's email, password, photo, sessions, keys and feedback are erased
-    And Sam's songs stay in station history as "Former listener"
+    And everything Sam did on the stations stays, credited to "Former listener": the songs added
+      (even those still in line), plays, skip votes and upvotes, so history, song records,
+      Alfred's scores and top players don't change
     And Sam can't sign in any more
     But the only admin can't delete their account until someone else is admin
 

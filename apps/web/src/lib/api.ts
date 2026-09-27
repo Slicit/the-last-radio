@@ -24,6 +24,8 @@ export type Track = {
   unavailable?: boolean;
   /** People who upvoted it on this station. */
   upvotes?: number;
+  /** Only a 30-second sample plays (SoundCloud previews): shown with a SAMPLE pill. */
+  isPreview?: boolean;
 };
 
 export type SearchSource = "youtube" | "soundcloud";

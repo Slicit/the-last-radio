@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrackArt } from "@/components/track-art";
+import { SampleBadge } from "@/components/sample-badge";
 import { OnAir } from "@/components/on-air";
 import { useRadios } from "@/hooks/use-radio";
 import { usePlayer } from "@/hooks/use-player";
@@ -68,6 +69,7 @@ export function HomePage() {
                   <TrackArt src={r.nowPlaying?.track.thumbnailUrl} className="size-14" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">
+                      {r.nowPlaying?.track.isPreview && <SampleBadge className="mr-1.5" />}
                       {r.nowPlaying?.track.title ?? "Waiting for a track"}
                     </div>
                     <div className="truncate text-xs text-muted-foreground">

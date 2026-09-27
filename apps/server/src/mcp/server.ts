@@ -205,7 +205,8 @@ export function buildMcpServer(ctx: Ctx): McpServer {
         return note + results
           .map((r, i) => {
             const why = detail ? blockedReason(r, detail) : null;
-            return `${i + 1}. ${r.title} (${r.artist ?? "unknown"}, ${fmtDuration(r.durationSec ?? 0)})${why ? ` [can't add: ${why}]` : ""}\n   url: ${r.sourceUrl}`;
+            const sample = r.isPreview ? " [SAMPLE: only 30 seconds play]" : "";
+            return `${i + 1}. ${r.title} (${r.artist ?? "unknown"}, ${fmtDuration(r.durationSec ?? 0)})${sample}${why ? ` [can't add: ${why}]` : ""}\n   url: ${r.sourceUrl}`;
           })
           .join("\n");
       }),

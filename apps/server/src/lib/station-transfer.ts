@@ -89,6 +89,7 @@ export const stationFile = z.object({
         checkedAt: date.nullable(),
         unavailableAt: date.nullable(),
         unavailableReason: z.string().max(1000).nullable(),
+        isPreview: z.boolean().default(false), // files from before it existed don't have it
       }),
     )
     .max(100_000),
@@ -200,6 +201,7 @@ export async function exportStation(radio: Radio): Promise<StationFile> {
       checkedAt: iso(t.checkedAt),
       unavailableAt: iso(t.unavailableAt),
       unavailableReason: t.unavailableReason,
+      isPreview: t.isPreview,
     })),
     plays,
     upvotes,
@@ -278,6 +280,7 @@ export async function importStation(
             checkedAt: s.checkedAt ? new Date(s.checkedAt) : null,
             unavailableAt: s.unavailableAt ? new Date(s.unavailableAt) : null,
             unavailableReason: s.unavailableReason,
+            isPreview: s.isPreview,
           })),
         )
         .onConflictDoNothing({ target: tracks.sourceKey })

@@ -4,6 +4,7 @@ import { useAddSong } from "@/hooks/use-add-song";
 import { Link2, Loader2, Plus, Search, TriangleAlert, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrackArt } from "@/components/track-art";
+import { SampleBadge } from "@/components/sample-badge";
 import { api, type QueueItem, type Quota, type SearchResult, type SearchSource } from "@/lib/api";
 import { duration } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -316,7 +317,10 @@ export function SongSearch({
                         </span>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="line-clamp-2 text-sm leading-snug font-medium">{opt.song.title}</div>
+                        <div className="line-clamp-2 text-sm leading-snug font-medium">
+                          {opt.song.isPreview && <SampleBadge className="mr-1.5" />}
+                          {opt.song.title}
+                        </div>
                         <div className="truncate text-xs text-muted-foreground">
                           {opt.song.artist}
                           {opt.song.views != null && <> · {compact.format(opt.song.views)} views</>}

@@ -36,6 +36,8 @@ Feature: Private stations
   @integration
   Scenario: Confirming an email
     Then signing up sends a confirmation link, valid once for 24 hours
+    And the email comes as HTML (the radio's logo and a "Confirm my email" button) and as plain text,
+      ending with why it was sent, what to do if it wasn't you, the privacy notice and who runs the radio
     And "Send confirmation email" in the profile sends a new one
     And no address gets more than 3 emails (sign-up included): the next is refused with
       "We've sent several emails to this address already. Try again in 30 min.", and it unlocks 30 minutes after the last

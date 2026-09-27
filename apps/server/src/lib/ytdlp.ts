@@ -31,7 +31,13 @@ export type ProbeResult = {
   artist: string | null;
   durationSec: number | null;
   thumbnailUrl: string | null;
+  /** Only a 30-second sample is available (SoundCloud's previews of Go+ songs). */
+  isPreview: boolean;
 };
+
+/** SoundCloud offers only "…_preview" formats for songs it won't stream in full. */
+export const previewOnly = (formats: unknown) =>
+  Array.isArray(formats) && formats.length > 0 && formats.every((f) => /preview/i.test(String(f?.format_id ?? "")));
 
 export class ProbeError extends Error {}
 
@@ -92,5 +98,6 @@ export async function probe(url: string): Promise<ProbeResult> {
     artist: (info.artist ?? info.uploader ?? info.channel ?? null)?.toString().slice(0, 200) ?? null,
     durationSec: typeof info.duration === "number" ? Math.round(info.duration) : null,
     thumbnailUrl: info.thumbnail ?? null,
+    isPreview: previewOnly(info.formats),
   };
 }

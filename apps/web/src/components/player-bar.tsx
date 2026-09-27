@@ -3,6 +3,7 @@ import { Loader2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { TrackArt } from "@/components/track-art";
+import { SampleBadge } from "@/components/sample-badge";
 import { usePlayer } from "@/hooks/use-player";
 import { useRadio } from "@/hooks/use-radio";
 import { adderName, closedLabel } from "@/lib/format";
@@ -40,6 +41,7 @@ export function PlayerBar() {
         <Link to={`/r/${station.slug}`} className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">
             <span className="text-muted-foreground">{station.name} · </span>
+            {np?.track.isPreview && <SampleBadge className="mr-1.5" />}
             {np?.track.title ?? "Nothing playing"}
           </div>
           <div className="truncate text-xs text-muted-foreground">{subtitle}</div>

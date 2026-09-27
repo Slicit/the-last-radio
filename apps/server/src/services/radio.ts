@@ -37,6 +37,7 @@ const itemColumns = {
     sourceUrl: tracks.sourceUrl,
     sourceKey: tracks.sourceKey,
     unavailable: sql<boolean>`${tracks.unavailableAt} is not null`,
+    isPreview: tracks.isPreview,
     upvotes: sql<number>`(select count(*)::int from song_upvotes u where u.radio_id = ${queueItems.radioId} and u.track_id = ${tracks.id})`,
   },
   isFill: queueItems.isFill,
@@ -137,8 +138,8 @@ async function resolveTrack(body: { url: string } | { trackId: string }) {
         message: `"${t.title}" is no longer available. Search for it by name to find another copy.`,
       });
     }
-    const { sourceKey, sourceUrl, title, artist, durationSec, thumbnailUrl } = t;
-    return { sourceKey, sourceUrl, title, artist, durationSec, thumbnailUrl };
+    const { sourceKey, sourceUrl, title, artist, durationSec, thumbnailUrl, isPreview } = t;
+    return { sourceKey, sourceUrl, title, artist, durationSec, thumbnailUrl, isPreview };
   }
   const url = body.url;
   // Songs picked from our own search results are already known: add them instantly.
@@ -331,6 +332,7 @@ export async function addSong(radio: Radio, user: PublicUser, target: AddTarget)
           durationSec: meta.durationSec,
           thumbnailUrl: meta.thumbnailUrl,
           sourceUrl: meta.sourceUrl,
+          isPreview: meta.isPreview,
         },
       })
       .returning();

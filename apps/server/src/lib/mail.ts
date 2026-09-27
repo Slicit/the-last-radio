@@ -6,7 +6,15 @@ import nodemailer, { type Transporter } from "nodemailer";
  */
 export const mailConfigured = () => !!process.env.SMTP_URL || process.env.MAIL_CAPTURE === "1";
 
-type Mail = { to: string; subject: string; text: string };
+type Mail = {
+  to: string;
+  subject: string;
+  /** Always sent: the plain-text version every mail app can show. */
+  text: string;
+  html?: string;
+  /** Inline images the HTML refers to as cid:… */
+  attachments?: { filename: string; content: Buffer; cid: string; contentType: string }[];
+};
 
 /**
  * At most `limit` emails to the same address within `blockMs`; the one that

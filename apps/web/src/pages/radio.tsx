@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { TrackArt } from "@/components/track-art";
+import { SampleBadge } from "@/components/sample-badge";
 import { SongSearch } from "@/components/song-search";
 import { SkipControls } from "@/components/skip-controls";
 import { AddAgain, type Lineup } from "@/components/add-again";
@@ -209,6 +210,7 @@ function NowPlaying({
             <div className="flex items-center gap-2 text-2xl leading-tight font-semibold break-words">
               {changing && <Loader2 className="size-5 shrink-0 animate-spin text-muted-foreground" />}
               {item?.track.title ?? (closed ? "Closed for now" : changing ? upNext!.track.title : "Dead air")}
+              {(item ?? (changing ? upNext : null))?.track.isPreview && <SampleBadge className="h-5 px-2 text-xs" />}
             </div>
             <div className="text-muted-foreground">
               {item ? (
@@ -363,9 +365,12 @@ function Row({ item, right }: { item: QueueItem; right?: ReactNode }) {
     <div className="flex items-center gap-3 py-2.5">
       <TrackArt src={item.track.thumbnailUrl} className="size-11" />
       <div className="min-w-0 flex-1">
-        <a href={item.track.sourceUrl} target="_blank" rel="noreferrer" className="block truncate text-sm font-medium hover:underline">
-          {item.track.title}
-        </a>
+        <div className="flex min-w-0 items-center gap-1.5">
+          {item.track.isPreview && <SampleBadge />}
+          <a href={item.track.sourceUrl} target="_blank" rel="noreferrer" className="block truncate text-sm font-medium hover:underline">
+            {item.track.title}
+          </a>
+        </div>
         <div className="truncate text-xs text-muted-foreground">
           {item.track.unavailable && <span className="text-destructive">No longer available · </span>}
           {item.track.artist && <>{item.track.artist} · </>}
