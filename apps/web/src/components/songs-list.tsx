@@ -56,10 +56,12 @@ export function SongsList({ slug, lineup }: { slug: string; lineup: Lineup }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Sort songs">
+      {/* One line on phones, scrolling sideways, rather than wrapping a lone button. */}
+      <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 sm:flex-wrap sm:overflow-visible" role="radiogroup" aria-label="Sort songs">
         {SORTS.map((s) => (
           <Button
             key={s.value}
+            className="shrink-0"
             size="sm"
             role="radio"
             aria-checked={sort === s.value}
@@ -89,13 +91,13 @@ export function SongsList({ slug, lineup }: { slug: string; lineup: Lineup }) {
                   </span>
                   <TrackArt src={s.track.thumbnailUrl} className="size-11" />
                   <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      {s.track.isPreview && <SampleBadge />}
+                    <div className="flex min-w-0 items-start gap-1.5">
+                      {s.track.isPreview && <SampleBadge className="mt-0.5" />}
                       <a
                         href={s.track.sourceUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="block truncate text-sm font-medium hover:underline"
+                        className="line-clamp-2 text-sm leading-snug font-medium break-words hover:underline sm:line-clamp-1"
                       >
                         {s.track.title}
                       </a>

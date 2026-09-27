@@ -360,14 +360,25 @@ function AlfredTag() {
   );
 }
 
-function Row({ item, right }: { item: QueueItem; right?: ReactNode }) {
+/**
+ * One song in a list. On phones the title may take two lines and `meta` (when
+ * it aired, how it ended) moves under it, so titles aren't squeezed to a few
+ * letters by columns; from tablet width up, duration and meta are columns.
+ */
+function Row({ item, meta, right }: { item: QueueItem; meta?: ReactNode; right?: ReactNode }) {
+  const length = duration(item.track.durationSec);
   return (
     <div className="flex items-center gap-3 py-2.5">
       <TrackArt src={item.track.thumbnailUrl} className="size-11" />
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-1.5">
-          {item.track.isPreview && <SampleBadge />}
-          <a href={item.track.sourceUrl} target="_blank" rel="noreferrer" className="block truncate text-sm font-medium hover:underline">
+        <div className="flex min-w-0 items-start gap-1.5">
+          {item.track.isPreview && <SampleBadge className="mt-0.5" />}
+          <a
+            href={item.track.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="line-clamp-2 text-sm leading-snug font-medium break-words hover:underline sm:line-clamp-1"
+          >
             {item.track.title}
           </a>
         </div>
@@ -375,9 +386,16 @@ function Row({ item, right }: { item: QueueItem; right?: ReactNode }) {
           {item.track.unavailable && <span className="text-destructive">No longer available · </span>}
           {item.track.artist && <>{item.track.artist} · </>}
           {item.isFill ? <AlfredTag /> : adderName(item)}
+          {!meta && <span className="sm:hidden"> · {length}</span>}
         </div>
+        {meta && (
+          <div className="truncate text-xs text-muted-foreground/80 tabular-nums sm:hidden">
+            {length} · {meta}
+          </div>
+        )}
       </div>
-      <div className="shrink-0 text-xs text-muted-foreground tabular-nums">{duration(item.track.durationSec)}</div>
+      <div className="hidden shrink-0 text-xs text-muted-foreground tabular-nums sm:block">{length}</div>
+      {meta && <div className="hidden w-32 shrink-0 text-right text-xs text-muted-foreground sm:block">{meta}</div>}
       {right}
     </div>
   );
@@ -483,14 +501,19 @@ function HistoryList({ slug, lineup }: { slug: string; lineup: Lineup }) {
             <Row
               key={item.id}
               item={item}
+              meta={
+                <>
+                  {item.startedAt ? ago(item.startedAt) : ""}
+                  {item.status === "skipped" && (
+                    <span className="text-muted-foreground/70 sm:block">
+                      <span className="sm:hidden"> · </span>
+                      {skippedLabel(item.skipReason)}
+                    </span>
+                  )}
+                </>
+              }
               right={
                 <>
-                  <span className="w-32 shrink-0 text-right text-xs text-muted-foreground">
-                    {item.startedAt ? ago(item.startedAt) : ""}
-                    {item.status === "skipped" && (
-                      <span className="block text-muted-foreground/70">{skippedLabel(item.skipReason)}</span>
-                    )}
-                  </span>
                   <UpvoteButton state={lineup.upvote} trackId={item.track.id} count={item.track.upvotes} />
                   <AddAgain lineup={lineup} track={item.track} />
                 </>
