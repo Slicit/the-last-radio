@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "../../src/db/index.js";
 import { alfredTopUp } from "../../src/lib/alfred.js";
-import { app, call, createStation, ORIGIN, putOnAir, add, register, track, type Person } from "./helpers.js";
+import { app, call, createStation, ORIGIN, putOnAir, add, register, seededRandom, track, type Person } from "./helpers.js";
 
 const { queueItems, radios } = schema;
 
@@ -59,9 +59,11 @@ describe("Upvotes", () => {
     expect(songs[0]).toMatchObject({ track: { title: "Loved" }, upvotes: 3, score: 9 }); // 1 + 2 + 3×2
     expect(songs[1]).toMatchObject({ track: { title: "Plain" }, upvotes: 0, score: 3 });
     const radio = (await db.query.radios.findFirst({ where: eq(radios.id, st.id) }))!;
+    // Seeded: the same 40 draws every run, so the test can't fail by bad luck.
+    const random = seededRandom(11);
     let lovedWins = 0;
     for (let i = 0; i < 40; i++) {
-      const [pick] = await alfredTopUp(radio);
+      const [pick] = await alfredTopUp(radio, random);
       if (pick.startsWith("Loved")) lovedWins++;
       await db.delete(queueItems).where(eq(queueItems.isFill, true));
     }

@@ -47,9 +47,10 @@ function quietLog(radio: Radio, message: string) {
  * last 30 minutes, one that failed to download in the last hour, or one
  * already lined up; songs from the last 3 hours are
  * less likely the more recently they played. His picks carry `isFill` so
- * anything a person adds plays first.
+ * anything a person adds plays first. `random` is there so tests can make
+ * the draw repeatable.
  */
-export async function alfredTopUp(radio: Radio): Promise<string[]> {
+export async function alfredTopUp(radio: Radio, random: () => number = Math.random): Promise<string[]> {
   if (radio.autofillBelowSec <= 0) return [];
   let lined = await lineupSeconds(radio.id);
   if (lined >= radio.autofillBelowSec) return [];
@@ -103,7 +104,7 @@ export async function alfredTopUp(radio: Radio): Promise<string[]> {
   const picked: string[] = [];
   while (lined < radio.autofillBelowSec && picked.length < MAX_PICKS_PER_RUN && pool.length) {
     const total = pool.reduce((n, s) => n + weight(s), 0);
-    let r = Math.random() * total;
+    let r = random() * total;
     const i = Math.max(0, pool.findIndex((s) => (r -= weight(s)) < 0));
     const [choice] = pool.splice(i, 1);
     // Drop other uploads of the song just picked.

@@ -1,4 +1,4 @@
-import { runYtdlp, type ProbeResult } from "./ytdlp.js";
+import { AbortedError, runYtdlp, type ProbeResult } from "./ytdlp.js";
 
 export const SEARCH_SOURCES = ["youtube", "soundcloud"] as const;
 export type SearchSource = (typeof SEARCH_SOURCES)[number];
@@ -58,13 +58,13 @@ export function toResult(e: any, source: SearchSource): SearchResult | null {
   };
 }
 
-export async function searchSongs(query: string, source: SearchSource = "youtube", signal?: AbortSignal): Promise<SearchResult[]> {
+export async function searchSongs(query: string, source: SearchSource = "youtube", signal?: AbortSignal, timeoutMs = 30_000): Promise<SearchResult[]> {
   const q = normalize(query);
   const key = `${source}:${q}`;
   const hit = queryCache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.results;
 
-  const raw = await runYtdlp(["--flat-playlist", "-J", `${PREFIX[source]}${RESULTS}:${q}`], 30_000, signal);
+  const raw = await runYtdlp(["--flat-playlist", "-J", `${PREFIX[source]}${RESULTS}:${q}`], timeoutMs, signal);
   const entries: any[] = JSON.parse(raw)?.entries ?? [];
   const results = entries.map((e) => toResult(e, source)).filter((r): r is SearchResult => r !== null);
 
@@ -100,4 +100,80 @@ export function knownFromUrl(url: string): ProbeResult | null {
     /* not a URL */
   }
   return null;
+}
+
+// ---------------------------------------------------------------- YouTube fallback
+
+const PROBE_MS = 2_000;
+const PROBE_TTL_MS = 30_000;
+const YOUTUBE_REST_MS = 60_000;
+const YOUTUBE_TIMEOUT_MS = 15_000;
+
+let proxyProbe: { at: number; ok: boolean } | null = null;
+let youtubeDownUntil = 0;
+
+/** Whether the YouTube proxy (YOUTUBE_PROXY, if any) answers: a TCP connect, cached for 30 s. */
+export async function youtubeReachable(proxy = process.env.YOUTUBE_PROXY ?? ""): Promise<boolean> {
+  if (!proxy) return true;
+  if (proxyProbe && Date.now() - proxyProbe.at < PROBE_TTL_MS) return proxyProbe.ok;
+  const { connect } = await import("node:net");
+  let ok = false;
+  try {
+    const u = new URL(proxy);
+    const port = Number(u.port || (u.protocol === "https:" ? 443 : 80));
+    ok = await new Promise<boolean>((resolve) => {
+      const s = connect({ host: u.hostname, port, timeout: PROBE_MS });
+      const done = (v: boolean) => {
+        s.destroy();
+        resolve(v);
+      };
+      s.once("connect", () => done(true));
+      s.once("timeout", () => done(false));
+      s.once("error", () => done(false));
+    });
+  } catch {
+    ok = false;
+  }
+  proxyProbe = { at: Date.now(), ok };
+  return ok;
+}
+
+export type SearchOutcome = { results: SearchResult[]; source: SearchSource; fallbackFrom?: SearchSource };
+
+/**
+ * A YouTube search that still answers when YouTube can't be reached (its
+ * proxy is down, or yt-dlp fails): the same query goes to SoundCloud, and
+ * YouTube rests a minute so the next searches don't wait on it either.
+ */
+export async function searchWithFallback(
+  query: string,
+  source: SearchSource,
+  signal?: AbortSignal,
+  deps: { search?: typeof searchSongs; reachable?: () => Promise<boolean>; now?: () => number } = {},
+): Promise<SearchOutcome> {
+  const search = deps.search ?? searchSongs;
+  const reachable = deps.reachable ?? (() => youtubeReachable());
+  const now = deps.now ?? Date.now;
+  if (source !== "youtube") return { results: await search(query, source, signal), source };
+
+  const soundcloud = async (): Promise<SearchOutcome> => ({
+    results: await search(query, "soundcloud", signal),
+    source: "soundcloud",
+    fallbackFrom: "youtube",
+  });
+  if (now() < youtubeDownUntil || !(await reachable())) return soundcloud();
+  try {
+    return { results: await search(query, "youtube", signal, YOUTUBE_TIMEOUT_MS), source: "youtube" };
+  } catch (e) {
+    if (e instanceof AbortedError || signal?.aborted) throw e;
+    console.warn(`YouTube search failed, using SoundCloud: ${e instanceof Error ? e.message : e}`);
+    youtubeDownUntil = now() + YOUTUBE_REST_MS;
+    return soundcloud();
+  }
+}
+
+/** Tests: forget the proxy check and YouTube's rest. */
+export function resetYoutubeHealth() {
+  proxyProbe = null;
+  youtubeDownUntil = 0;
 }

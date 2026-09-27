@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useAddSong } from "@/hooks/use-add-song";
-import { Link2, Loader2, Plus, Search, X } from "lucide-react";
+import { Link2, Loader2, Plus, Search, TriangleAlert, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrackArt } from "@/components/track-art";
 import { api, type QueueItem, type Quota, type SearchResult, type SearchSource } from "@/lib/api";
@@ -83,7 +83,10 @@ export function SongSearch({
   const search = useQuery({
     queryKey: ["search", source, debounced.toLowerCase()],
     queryFn: ({ signal }) =>
-      api.get<{ results?: SearchResult[] }>(`/search?q=${encodeURIComponent(debounced)}&source=${source}`, signal),
+      api.get<{ results?: SearchResult[]; source?: SearchSource; fallbackFrom?: SearchSource }>(
+        `/search?q=${encodeURIComponent(debounced)}&source=${source}`,
+        signal,
+      ),
     enabled: searching,
     placeholderData: keepPreviousData,
     staleTime: 10 * 60_000,
@@ -260,6 +263,12 @@ export function SongSearch({
             // Keep focus in the input so blur doesn't close the list mid-click.
             onMouseDown={(e) => e.preventDefault()}
           >
+            {searching && search.data?.fallbackFrom === "youtube" && (
+              <p role="status" className="flex items-center gap-2 border-b bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                <TriangleAlert className="size-3.5 shrink-0" />
+                YouTube isn't reachable right now, so here are SoundCloud results. Links from either still work.
+              </p>
+            )}
             <ul id={listId} role="listbox" aria-label="Songs" className="max-h-[26rem] overflow-y-auto p-1">
               {firstLoad &&
                 [0, 1, 2].map((i) => (
@@ -345,7 +354,7 @@ export function SongSearch({
                   <kbd className="font-sans">↑↓</kbd> choose · <kbd className="font-sans">Enter</kbd> add ·{" "}
                   <kbd className="font-sans">Esc</kbd> close
                 </span>
-                <span>from {source === "soundcloud" ? "SoundCloud" : "YouTube"}</span>
+                <span>from {(search.data?.source ?? source) === "soundcloud" ? "SoundCloud" : "YouTube"}</span>
               </div>
             )}
           </div>

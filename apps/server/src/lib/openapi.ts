@@ -148,8 +148,8 @@ const ops: Record<string, Op> = {
     tag: "Songs",
     auth: "user",
     query: { q: { ...str, minLength: 2, maxLength: 120, required: true }, source: { enum: ["youtube", "soundcloud"], default: "youtube" } },
-    ok: obj({ results: { type: "array", items: { allOf: [ref("Track"), obj({ videoId: str, views: nullable(int), source: str })] } } }),
-    description: "Picking a result and posting its sourceUrl to /queue adds it instantly.",
+    ok: obj({ results: { type: "array", items: { allOf: [ref("Track"), obj({ videoId: str, views: nullable(int), source: str })] } }, source: { enum: ["youtube", "soundcloud"], description: "Where the results come from" }, fallbackFrom: { enum: ["youtube"], description: "Set when YouTube couldn't be reached and SoundCloud answered instead" } }, ["results", "source"]),
+    description: "Picking a result and posting its sourceUrl to /queue adds it instantly. When YouTube can't be reached, a YouTube search answers with SoundCloud results (fallbackFrom: \"youtube\").",
   },
 
   "GET /api/radios/{slug}/access": { summary: "Who may hear a private station", tag: "Private stations", auth: "admin", ok: obj({ isPrivate: bool, members: { type: "array", items: obj({ id: str, displayName: str, email: str, addedAt: time }) }, domains: { type: "array", items: str }, matches: { type: "array", items: obj({ domain: str, people: { type: "array", items: obj({ id: str, displayName: str, email: str, verified: bool }) } }) }, mailConfigured: bool }) },

@@ -73,7 +73,7 @@ fi
 if want integration; then
   echo "▸ integration tests"
   in_container lastradio-server sh -c "cd /work/apps/server && \
-    DATABASE_URL=postgres://lastradio:$POSTGRES_PASSWORD@lastradio-test-postgres:5432/lastradio_it npx vitest run --project integration"
+    DATABASE_URL=postgres://lastradio:$POSTGRES_PASSWORD@lastradio-test-postgres:5432/lastradio_it npx vitest run --project integration ${INTEGRATION_ARGS:-}"
 fi
 
 if want e2e; then

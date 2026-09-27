@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "../../src/db/index.js";
 import { alfredTopUp } from "../../src/lib/alfred.js";
-import { add, call, createStation, register, track, type Person } from "./helpers.js";
+import { add, call, createStation, register, seededRandom, track, type Person } from "./helpers.js";
 
 const { queueItems, radios } = schema;
 
@@ -127,9 +127,11 @@ describe("Queue order and Alfred", () => {
     const fresh = await track({ title: "Just played", durationSec: 200 });
     await history(st.id, old.id, alex, { hoursAgo: 5 });
     await history(st.id, fresh.id, alex, { hoursAgo: 0.6 });
+    // Seeded: the same 40 draws every run, so the test can't fail by bad luck.
+    const random = seededRandom(7);
     let oldWins = 0;
     for (let i = 0; i < 40; i++) {
-      const [pick] = await alfredTopUp(await radioRow(st.id));
+      const [pick] = await alfredTopUp(await radioRow(st.id), random);
       if (pick.startsWith("Old favourite")) oldWins++;
       await db.delete(queueItems).where(eq(queueItems.isFill, true));
     }

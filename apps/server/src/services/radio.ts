@@ -273,7 +273,8 @@ export async function stats(radio: Radio) {
       .innerJoin(tracks, eq(tracks.id, queueItems.trackId))
       .where(aired)
       .groupBy(users.id)
-      .orderBy(desc(plays))
+      // Ties in a stable order (most listening time, then name), not whatever Postgres returns.
+      .orderBy(desc(plays), sql`coalesce(sum(${tracks.durationSec}), 0) desc`, asc(users.displayName), asc(users.id))
       .limit(10),
     db
       .select({

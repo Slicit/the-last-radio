@@ -83,3 +83,15 @@ export async function putOnAir(itemId: string, startedAt = new Date()) {
 export function listening(radioId: string, listenerId: string, userId: string | null, ip = "10.1.1.1") {
   return heartbeat(radioId, listenerId, userId, ip);
 }
+
+/** A seeded random source (mulberry32), so weighted draws in tests come out the same every run. */
+export function seededRandom(seed = 42) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}

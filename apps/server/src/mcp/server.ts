@@ -10,7 +10,7 @@ import { db, schema } from "../db/index.js";
 import type { Radio } from "../db/schema.js";
 import type { PublicUser } from "../lib/auth.js";
 import type { Scope } from "../lib/tokens.js";
-import { SEARCH_SOURCES, searchSongs } from "../lib/search.js";
+import { SEARCH_SOURCES, searchWithFallback } from "../lib/search.js";
 import { songRecords, type SongSort } from "../lib/track-stats.js";
 import * as svc from "../services/radio.js";
 import { canAccess } from "../lib/access.js";
@@ -198,10 +198,11 @@ export function buildMcpServer(ctx: Ctx): McpServer {
     },
     ({ query, source, station: ref }) =>
       run(async () => {
-        const results = await searchSongs(query, source);
-        if (!results.length) return `Nothing found for "${query}". Try the artist and the song title.`;
+        const { results, fallbackFrom } = await searchWithFallback(query, source);
+        const note = fallbackFrom ? "YouTube isn't reachable right now, so these are SoundCloud results.\n" : "";
+        if (!results.length) return `${note}Nothing found for "${query}". Try the artist and the song title.`;
         const detail = ref ? await svc.radioDetail(await findStation(ref, user), user) : null;
-        return results
+        return note + results
           .map((r, i) => {
             const why = detail ? blockedReason(r, detail) : null;
             return `${i + 1}. ${r.title} (${r.artist ?? "unknown"}, ${fmtDuration(r.durationSec ?? 0)})${why ? ` [can't add: ${why}]` : ""}\n   url: ${r.sourceUrl}`;
@@ -242,7 +243,7 @@ export function buildMcpServer(ctx: Ctx): McpServer {
           // Take the best match that fits the station; if that song is already on air or
           // queued, say so rather than quietly adding another upload of it.
           const detail = await svc.radioDetail(radio, user);
-          const fits = (await searchSongs(query!, source)).filter((r) => (r.durationSec ?? 0) <= radio.maxTrackSec);
+          const fits = (await searchWithFallback(query!, source)).results.filter((r) => (r.durationSec ?? 0) <= radio.maxTrackSec);
           const pick = fits[0];
           if (!pick) throw new HTTPException(404, { message: `No match for "${query}" fits this station. Try search_songs.` });
           const why = blockedReason(pick, detail);

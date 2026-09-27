@@ -60,3 +60,21 @@ test("the results open below the search box, not over it", async ({ page }) => {
   const [input, list] = [await box.boundingBox(), await panel.boundingBox()];
   expect(list!.y).toBeGreaterThanOrEqual(input!.y + input!.height);
 });
+
+test("Search still answers when YouTube can't be reached", async ({ page }) => {
+  // The server's fallback is covered by unit tests; here, how the page shows it.
+  await page.route("**/api/search?**", (r) =>
+    r.fulfill({
+      json: {
+        source: "soundcloud",
+        fallbackFrom: "youtube",
+        results: [{ videoId: "1", sourceKey: "Soundcloud:e2e-fallback", sourceUrl: "https://soundcloud.com/e2e/fallback", title: "Fallback Song", artist: "E2E", durationSec: 200, thumbnailUrl: null, views: null, source: "soundcloud" }],
+      },
+    }),
+  );
+  await page.goto("/r/e2e-main");
+  await page.getByRole("radio", { name: "YouTube" }).click();
+  await page.getByRole("combobox", { name: "Search for a song" }).fill("daft punk");
+  await expect(page.getByRole("status").filter({ hasText: "YouTube isn't reachable right now" })).toBeVisible();
+  await expect(page.getByRole("option", { name: /Fallback Song/ })).toBeVisible();
+});

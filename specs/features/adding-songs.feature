@@ -38,6 +38,15 @@ Feature: Adding songs
     And the choice is remembered in this browser
     And a SoundCloud song picked from the results is added instantly, and recognised as the same song if its link is pasted later
 
+  @unit @e2e
+  Scenario: Search still answers when YouTube can't be reached
+    Given YouTube is reached through a proxy (YOUTUBE_PROXY) that is down, or a YouTube search fails
+    When Sam searches YouTube for "daft punk"
+    Then Sam gets SoundCloud results, with "YouTube isn't reachable right now, so here are SoundCloud results"
+    And while the proxy doesn't answer (checked in 2 seconds, every 30 at most), searches go straight to SoundCloud
+    And after a failed YouTube search, YouTube rests a minute before being tried again
+    And AI assistants' searches fall back the same way, and say so
+
   @e2e
   Scenario: The results open below the search box, not over it
     When results appear

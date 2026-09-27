@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { HTTPException } from "hono/http-exception";
 import { type AppEnv, requireScope, requireUser } from "../lib/auth.js";
-import { SEARCH_SOURCES, searchSongs } from "../lib/search.js";
+import { SEARCH_SOURCES, searchWithFallback } from "../lib/search.js";
 import { AbortedError, ProbeError } from "../lib/ytdlp.js";
 import { zValidator } from "../lib/validate.js";
 
@@ -30,8 +30,8 @@ export const searchRoutes = new Hono<AppEnv>().get(
     }
     try {
       const { q, source } = c.req.valid("query");
-      const results = await searchSongs(q, source, c.req.raw.signal);
-      return c.json({ results });
+      // Falls back to SoundCloud when YouTube can't be reached; `source` says which answered.
+      return c.json(await searchWithFallback(q, source, c.req.raw.signal));
     } catch (e) {
       if (e instanceof AbortedError) return c.body(null, 204);
       if (e instanceof ProbeError) throw new HTTPException(502, { message: "Search is unavailable right now" });
