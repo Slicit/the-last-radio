@@ -56,7 +56,7 @@ private, open only in the evening), and let your AI assistant add songs for you.
 - **Email** confirmations, from any SMTP service or from a small mail server on your own host (SPF, DKIM, DMARC ready; see [`deploy/mail`](deploy/mail/README.md)). No address gets more than 3 emails in 30 minutes.
 
 ### Privacy and security, built in
-- **No trackers, no ads, one sign-in cookie**, so no cookie banner; people acknowledge a clear privacy notice (French and English, written for GDPR and French law) when they sign up or when it changes.
+- **No trackers, no ads, one sign-in cookie**, so no cookie banner. Song artwork is served from the radio's own cache, so browsers never contact YouTube or SoundCloud; people acknowledge a clear privacy notice (French and English, written for GDPR and French law) when they sign up or when it changes.
 - **Download my data** and **Delete my account** are self-service.
 - Passwords hashed with salted **argon2id**; sessions, keys and tokens stored only as hashes.
 - **Rate limits** on sign-in (per IP and per account), sign-up, OAuth, MCP, search and uploads; CSRF, SSRF and clickjacking protections; a strict Content-Security-Policy.
@@ -104,6 +104,7 @@ Open <http://localhost:28700>, **sign up: the first account becomes the admin**,
 | `HOSTING_PROVIDER` / `DATA_LOCATION` | unset | Who hosts the servers (name, address, phone, as French law asks) and where the data is stored, shown in the privacy notice. Unset: "self-hosted by the controller". |
 | `REGISTRATIONS_PER_HOUR` | `5` | Sign-ups allowed per IP per hour. |
 | `SONG_CHECK_INTERVAL_DAYS` | `7` | How often each song is re-checked. |
+| `ART_CACHE_MAX_BYTES` | 256 MB | Disk space for song artwork (small WebPs, a few KB each), kept next to the audio cache. |
 | `CACHE_SIZE_GB` | `2` | Disk space for downloaded songs (about 4.5 MB each, so 2 GB ≈ 450 songs, 10 GB ≈ 2,300). The least recently played are evicted first. |
 | `YOUTUBE_PROXY` | unset | Send YouTube (only) through a proxy, e.g. `http://10.66.0.2:8888`, when YouTube blocks the server's address. See [`deploy/youtube-relay`](deploy/youtube-relay/README.md). |
 | `SERVER_IMAGE` / `WEB_IMAGE` | built locally | Released images to run (see below). |

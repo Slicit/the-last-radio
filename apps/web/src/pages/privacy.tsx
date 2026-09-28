@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
  * sharing or keeping something differently, update both languages below and
  * POLICY_VERSION (here and in apps/server/src/lib/legal.ts). See CLAUDE.md.
  */
-export const POLICY_VERSION = "2026-09-28.2";
+export const POLICY_VERSION = "2026-09-28.3";
 const UPDATED = { fr: "28 septembre 2026", en: "28 September 2026" };
 
 type Legal = {
@@ -160,7 +160,7 @@ export function PrivacyPage() {
               <li><strong>Les administrateurs</strong> de la radio voient en plus votre e-mail et vos retours.</li>
               {data?.stationTransfer && <li><strong>Le déménagement d'une station</strong> : un administrateur peut enregistrer une station entière (réglages, file d'attente, historique) dans un fichier, pour la recréer sur une autre radio The Last Radio. Ce fichier contient le pseudo et l'e-mail des personnes qui y ont ajouté des chansons ou voté (mais ni mot de passe, ni avatar, ni retour). Sur l'autre radio, votre activité est rattachée à votre compte s'il utilise le même e-mail ; sinon, elle reste affichée sous votre pseudo, sur un compte auquel personne ne peut se connecter.</li>}
               <li><strong>L'envoi d'e-mails</strong> : pour vous envoyer le lien de confirmation, votre adresse passe par le service d'envoi choisi par le responsable.</li>
-              <li><strong>Les services de musique</strong> : c'est notre serveur qui récupère les chansons sur YouTube, SoundCloud, Bandcamp, etc., donc votre adresse IP ne leur est pas transmise. Seule exception, les <strong>vignettes</strong> des chansons : votre navigateur les charge directement chez eux (Google/YouTube, SoundCloud), qui voient alors votre adresse IP et peuvent être situés hors de l'Union européenne.</li>
+              <li><strong>Les services de musique</strong> : c'est notre serveur qui récupère les chansons et leurs images sur YouTube, SoundCloud, Bandcamp, etc. Votre navigateur ne les contacte jamais, et votre adresse IP ne leur est pas transmise.</li>
               <li><strong>Les assistants IA</strong> que vous connectez : ce que nous leur envoyons est traité par leur éditeur, selon ses propres règles.</li>
             </ul>
           </Section>
@@ -170,12 +170,11 @@ export function PrivacyPage() {
               {hosting ? (
                 <>
                   La radio est hébergée par <strong>{hosting}</strong>.{where && <> Vos données sont stockées en <strong>{where}</strong>.</>}{" "}
-                  Elles ne quittent pas l'Union européenne, sauf pour les vignettes évoquées plus haut.
+                  Elles ne quittent pas l'Union européenne.
                 </>
               ) : (
                 <>
-                  La radio est hébergée par son responsable lui-même. Vos données ne quittent pas l'Union européenne, sauf
-                  pour les vignettes évoquées plus haut.
+                  La radio est hébergée par son responsable lui-même. Vos données ne quittent pas l'Union européenne.
                 </>
               )}{" "}
               Pour les protéger : mots de passe et jetons stockés uniquement sous forme d'empreinte, nombre de tentatives
@@ -271,7 +270,7 @@ export function PrivacyPage() {
               <li><strong>The radio's admins</strong> also see your email and your feedback.</li>
               {data?.stationTransfer && <li><strong>Moving a station</strong>: an admin can export a station (settings, queue, history) to a file, to recreate it on another instance of The Last Radio. The file holds the display name and email of the people who added, voted on or upvoted its songs (no passwords, avatars or feedback). On import, your contributions are linked to your account on that instance if it has the same email; otherwise they stay under your display name, on an account nobody can sign in to.</li>}
               <li><strong>Email delivery</strong>: to send your confirmation link, your address is passed to the mail (SMTP) service the controller chose.</li>
-              <li><strong>Music services</strong>: our server fetches songs from YouTube, SoundCloud, Bandcamp and others; your IP address isn't passed on. Song <strong>thumbnails</strong>, however, are loaded by your browser straight from their servers (Google/YouTube, SoundCloud), which then receive your IP address and may be outside the European Union.</li>
+              <li><strong>Music services</strong>: our server fetches songs and their artwork from YouTube, SoundCloud, Bandcamp and others. Your browser never contacts them, and your IP address isn't passed on.</li>
               <li><strong>AI assistants</strong> you connect: what our tools return to them is handled by their provider under its own policy.</li>
             </ul>
           </Section>
@@ -281,12 +280,12 @@ export function PrivacyPage() {
               {hosting ? (
                 <>
                   Hosted by <strong>{hosting}</strong>.{where && <> Your data is stored in <strong>{where}</strong>.</>} We
-                  don't transfer your data outside the European Union, except for the thumbnails above.
+                  don't transfer your data outside the European Union.
                 </>
               ) : (
                 <>
                   The Last Radio is self-hosted by the data controller; we don't transfer your data outside the European
-                  Union, except for the thumbnails above.
+                  Union.
                 </>
               )}{" "}
               Passwords hashed with salted argon2id, tokens hashed (SHA-256),

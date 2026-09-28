@@ -20,6 +20,7 @@ import { internalRoutes } from "./routes/internal.js";
 import { stationAccessRoutes } from "./routes/access-admin.js";
 import { listenerStatsRoutes } from "./routes/stats-admin.js";
 import { adminSettingsRoutes, settingsRoutes } from "./routes/settings.js";
+import { artRoutes } from "./routes/art.js";
 
 const smallBodies = bodyLimit({ maxSize: 64 * 1024, onError: (c) => c.json({ error: "That request is too large" }, 413) });
 
@@ -39,6 +40,7 @@ export function createApp({ log = true } = {}) {
     .route("/admin/feedback", adminFeedbackRoutes)
     .route("/admin/listeners", listenerStatsRoutes)
     .route("/settings", settingsRoutes)
+    .route("/art", artRoutes)
     .route("/admin/settings", adminSettingsRoutes)
     .route("/me", meRoutes)
     .route("/avatars", avatarRoutes)

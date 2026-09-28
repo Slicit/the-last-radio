@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { TrackArt } from "@/components/track-art";
+import { artUrl, TrackArt } from "@/components/track-art";
 import { SampleBadge } from "@/components/sample-badge";
 import { SongSearch } from "@/components/song-search";
 import { SkipControls } from "@/components/skip-controls";
@@ -199,7 +199,7 @@ function NowPlaying({
     <Card>
       <CardContent className="flex flex-col gap-6 sm:flex-row">
         <TrackArt
-          src={item?.track.thumbnailUrl ?? (changing ? upNext?.track.thumbnailUrl : null)}
+          src={artUrl(item?.track ?? (changing ? upNext?.track : null))}
           className={cn("aspect-square w-full sm:w-48", changing && "opacity-50")}
         />
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-4">
@@ -369,7 +369,7 @@ function Row({ item, meta, right }: { item: QueueItem; meta?: ReactNode; right?:
   const length = duration(item.track.durationSec);
   return (
     <div className="flex items-center gap-3 py-2.5">
-      <TrackArt src={item.track.thumbnailUrl} className="size-11" />
+      <TrackArt src={artUrl(item.track)} className="size-11" />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-start gap-1.5">
           {item.track.isPreview && <SampleBadge className="mt-0.5" />}

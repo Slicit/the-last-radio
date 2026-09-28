@@ -86,6 +86,12 @@ export const searchYoutube = (query: string, signal?: AbortSignal) => searchSong
 
 const YT_ID = /^[A-Za-z0-9_-]{11}$/;
 
+/** Metadata for a song (by source key) we recently showed in search results, if any. */
+export function knownFromKey(key: string): ProbeResult | null {
+  const e = known.get(key);
+  return e && Date.now() - e.at < KNOWN_TTL_MS ? e.meta : null;
+}
+
 /** Metadata for a link we recently showed in search results, if any. */
 export function knownFromUrl(url: string): ProbeResult | null {
   const fresh = (k: string) => {

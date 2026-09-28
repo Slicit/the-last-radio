@@ -3,7 +3,7 @@ import { Bot, Ban, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrackArt } from "@/components/track-art";
+import { artUrl, TrackArt } from "@/components/track-art";
 import { SampleBadge } from "@/components/sample-badge";
 import { AddAgain, type Lineup } from "@/components/add-again";
 import { UpvoteButton } from "@/components/upvote-button";
@@ -89,7 +89,7 @@ export function SongsList({ slug, lineup }: { slug: string; lineup: Lineup }) {
                   <span className="w-5 shrink-0 text-right text-sm font-semibold text-muted-foreground tabular-nums">
                     {offset + i + 1}
                   </span>
-                  <TrackArt src={s.track.thumbnailUrl} className="size-11" />
+                  <TrackArt src={artUrl(s.track)} className="size-11" />
                   <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 items-start gap-1.5">
                       {s.track.isPreview && <SampleBadge className="mt-0.5" />}

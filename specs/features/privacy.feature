@@ -54,3 +54,12 @@ Feature: Privacy
   @manual
   Scenario: Logs don't grow forever
     Then each service's logs rotate at 10 MB, keeping 3 files
+
+  @integration
+  Scenario: Song artwork comes from our own cache
+    Then song images are fetched by the server, shrunk to a small WebP (480 px at most) and served from /api/art
+    So listeners' browsers never contact YouTube, SoundCloud or other music sites, and the notice says so
+    And images live next to the audio cache, the least recently shown dropped first when it's full, fetched again when needed
+    And an image that can't be fetched shows the placeholder, and is tried again after a day
+    And only public addresses are fetched (never internal ones, even after a redirect), images only, 5 MB at most
+    And scripts/backfill-art.sh fills the cache for every song already known (newest first), skipping cached ones

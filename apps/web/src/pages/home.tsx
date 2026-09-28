@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrackArt } from "@/components/track-art";
+import { artUrl, TrackArt } from "@/components/track-art";
 import { SampleBadge } from "@/components/sample-badge";
 import { OnAir } from "@/components/on-air";
 import { useRadios } from "@/hooks/use-radio";
@@ -66,7 +66,7 @@ export function HomePage() {
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <TrackArt src={r.nowPlaying?.track.thumbnailUrl} className="size-14" />
+                  <TrackArt src={artUrl(r.nowPlaying?.track)} className="size-14" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">
                       {r.nowPlaying?.track.isPreview && <SampleBadge className="mr-1.5" />}

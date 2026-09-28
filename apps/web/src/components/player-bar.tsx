@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import { Loader2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { TrackArt } from "@/components/track-art";
+import { artUrl, TrackArt } from "@/components/track-art";
 import { SampleBadge } from "@/components/sample-badge";
 import { usePlayer } from "@/hooks/use-player";
 import { useRadio } from "@/hooks/use-radio";
@@ -39,7 +39,7 @@ export function PlayerBar() {
         >
           {status === "connecting" ? <Loader2 className="animate-spin" /> : active ? <Pause /> : <Play />}
         </Button>
-        <TrackArt src={np?.track.thumbnailUrl} className="size-10" />
+        <TrackArt src={artUrl(np?.track)} className="size-10" />
         <Link to={`/r/${station.slug}`} className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">
             <span className="text-muted-foreground">{station.name} · </span>

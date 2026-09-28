@@ -72,6 +72,10 @@ services:
       YOUTUBE_PROXY: ${YOUTUBE_PROXY:-}
       CACHE_DIR: /data/cache
       CACHE_SIZE_GB: ${CACHE_SIZE_GB:-2}
+      ART_CACHE_MAX_BYTES: ${ART_CACHE_MAX_BYTES:-268435456}
+    # Song artwork lives next to the audio cache (CACHE_DIR/thumbs).
+    volumes:
+      - audiocache:/data/cache
     depends_on:
       postgres: { condition: service_healthy }
     restart: unless-stopped

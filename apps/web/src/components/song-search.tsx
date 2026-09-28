@@ -3,7 +3,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useAddSong } from "@/hooks/use-add-song";
 import { Link2, Loader2, Plus, Search, TriangleAlert, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrackArt } from "@/components/track-art";
+import { artUrl, TrackArt } from "@/components/track-art";
 import { SampleBadge } from "@/components/sample-badge";
 import { api, type QueueItem, type Quota, type SearchResult, type SearchSource } from "@/lib/api";
 import { duration } from "@/lib/format";
@@ -311,7 +311,7 @@ export function SongSearch({
                   ) : (
                     <>
                       <div className="relative shrink-0">
-                        <TrackArt src={opt.song.thumbnailUrl} className="h-10 w-16 rounded" />
+                        <TrackArt src={artUrl(opt.song)} className="h-10 w-16 rounded" />
                         <span className="absolute right-0.5 bottom-0.5 rounded bg-black/75 px-1 text-[0.6rem] leading-tight font-medium text-white tabular-nums">
                           {duration(opt.song.durationSec)}
                         </span>
