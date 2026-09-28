@@ -16,6 +16,14 @@ import * as svc from "../services/radio.js";
 import { removeUpvote, upvote } from "../lib/upvotes.js";
 import { bodyLimit } from "hono/body-limit";
 import { exportStation, importStation, stationFile } from "../lib/station-transfer.js";
+import { stationTransferEnabled } from "../lib/features.js";
+import { createMiddleware } from "hono/factory";
+
+/** Export and import answer "not found" when the radio turned them off (STATION_TRANSFER=off). */
+const transferOn = createMiddleware(async (_c, next) => {
+  if (!stationTransferEnabled()) throw new HTTPException(404, { message: "Station export and import are turned off on this radio" });
+  await next();
+});
 
 // A station's file can hold years of history; this is the one big JSON body we take.
 export const IMPORT_MAX_BYTES = 50 * 1024 * 1024;
@@ -90,6 +98,7 @@ export const radioRoutes = new Hono<AppEnv>()
   // Recreate a station from an export file (see lib/station-transfer.ts).
   .post(
     "/import",
+    transferOn,
     requireAdmin,
     bodyLimit({ maxSize: IMPORT_MAX_BYTES, onError: (c) => c.json({ error: "That file is over 50 MB" }, 413) }),
     zValidator("query", z.object({ slug: slugSchema.optional(), name: radioFields.name.optional() })),
@@ -104,7 +113,7 @@ export const radioRoutes = new Hono<AppEnv>()
     },
   )
 
-  .get("/:slug/export", requireAdmin, async (c) => {
+  .get("/:slug/export", transferOn, requireAdmin, async (c) => {
     const radio = await svc.getRadio(c.req.param("slug"));
     const file = await exportStation(radio);
     const day = file.exportedAt.slice(0, 10);

@@ -26,23 +26,24 @@ Feature: Profile and appearance
     Then it never flashes the dark theme first
 
   @e2e @integration
-  Scenario: Setting a profile photo
-    When Sam opens "Edit profile" and uploads a photo
+  Scenario: Setting an avatar
+    When Sam opens "Edit profile" and uploads an avatar (any image)
     Then it appears, cropped square, in the header and the profile dialog
     And "Remove" takes it away again
 
   @integration
-  Scenario: Profile photos are handled safely
+  Scenario: Avatars are handled safely
     Then only JPEG, PNG, WebP and GIF files are accepted, judged by their content, not their name or declared type
     And files over 5 MB are refused
-    And every photo is re-encoded to a 256×256 WebP; the original is never stored
+    And every avatar is re-encoded to a 256×256 WebP; the original is never stored
     And camera metadata (EXIF, GPS) is stripped
     And oversized images (decompression bombs) are refused
-    And photos are served with nosniff and a sandboxing Content-Security-Policy
-    And someone can change their photo at most 10 times an hour
+    And avatars are served with nosniff and a sandboxing Content-Security-Policy
+    And someone can change their avatar at most 10 times an hour
 
   @integration
   Scenario: Changing your display name
     When Sam renames themselves "Sammy" in "Edit profile"
     Then songs Sam added show "added by Sammy"
     And names must be 2 to 40 characters
+    And the sign-up and profile forms say a nickname is fine: it doesn't have to be a real name

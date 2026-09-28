@@ -180,4 +180,23 @@ describe("Moving a station", () => {
     expect(JSON.stringify(big).length).toBeGreaterThan(64 * 1024);
     expect((await importAs(alex, big, "?slug=big")).status).toBe(201);
   });
+
+  it("A radio can turn export and import off", async () => {
+    const alex = await register("Alex");
+    const st = await createStation(alex);
+    const file = (await exportOf(alex, st.slug)).json;
+    process.env.STATION_TRANSFER = "off";
+    try {
+      const out = await exportOf(alex, st.slug);
+      expect(out.status).toBe(404);
+      expect(out.json.error).toBe("Station export and import are turned off on this radio");
+      expect((await importAs(alex, file, "?slug=nope")).status).toBe(404);
+      expect((await call("GET", "/api/settings")).json.stationTransfer).toBe(false);
+      expect((await call("GET", "/api/legal")).json.stationTransfer).toBe(false); // the notice drops that section
+    } finally {
+      delete process.env.STATION_TRANSFER;
+    }
+    expect((await exportOf(alex, st.slug)).status).toBe(200);
+    expect((await call("GET", "/api/legal")).json.stationTransfer).toBe(true);
+  });
 });

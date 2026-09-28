@@ -51,7 +51,7 @@ private, open only in the evening), and let your AI assistant add songs for you.
 
 ### Make it yours
 - **Three themes**: *Night* (dark), *Light* and *Vintage* (an old wooden radio: sepia paper, walnut, an amber dial glow).
-- **Profile photo** and display name. Uploads are re-encoded and stripped of metadata.
+- **Avatar** and **display name** (a nickname is fine). Avatars are re-encoded and stripped of metadata.
 - **Feedback** straight to the admins (3 a day), who triage it: vote a priority, mark read, archive.
 - **Email** confirmations, from any SMTP service or from a small mail server on your own host (SPF, DKIM, DMARC ready; see [`deploy/mail`](deploy/mail/README.md)). No address gets more than 3 emails in 30 minutes.
 
@@ -100,6 +100,7 @@ Open <http://localhost:28700>, **sign up: the first account becomes the admin**,
 | `SMTP_URL` / `MAIL_FROM` | unset | Email for confirming addresses (private stations' domain rules). Without it, admins can mark people verified. |
 | `MAIL_RETURN_PATH` | the From address | Where bounces go (the envelope sender SPF checks). To send from the host itself, see [`deploy/mail`](deploy/mail/README.md) and `docker-compose.mail.yml`. |
 | `PRIVACY_CONTROLLER` / `PRIVACY_CONTACT` | unset | Who runs this radio and how to reach them, shown in the privacy notice. |
+| `STATION_TRANSFER` | `on` | `off` removes station export and import (their files name people with their emails), and the privacy notice stops mentioning them. |
 | `HOSTING_PROVIDER` / `DATA_LOCATION` | unset | Who hosts the servers (name, address, phone, as French law asks) and where the data is stored, shown in the privacy notice. Unset: "self-hosted by the controller". |
 | `REGISTRATIONS_PER_HOUR` | `5` | Sign-ups allowed per IP per hour. |
 | `SONG_CHECK_INTERVAL_DAYS` | `7` | How often each song is re-checked. |

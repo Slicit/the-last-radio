@@ -38,7 +38,7 @@ export const meRoutes = new Hono<AppEnv>()
   )
   .put(
     "/avatar",
-    perUser(10, 3600_000, "Too many photo changes."),
+    perUser(10, 3600_000, "Too many avatar changes."),
     // Just over 5 MB of image plus multipart framing; the image itself is checked below.
     bodyLimit({
       maxSize: AVATAR_MAX_BYTES + 64 * 1024,

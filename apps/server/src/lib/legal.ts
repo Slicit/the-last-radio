@@ -1,10 +1,12 @@
+import { stationTransferEnabled } from "./features.js";
+
 /**
  * The privacy notice's version: the date it last changed. Bump it (and the
  * same constant in apps/web/src/pages/privacy.tsx) whenever the notice
  * changes; everyone is then asked to acknowledge it again at sign-in.
  * See CLAUDE.md, "Privacy notice".
  */
-export const POLICY_VERSION = "2026-09-28";
+export const POLICY_VERSION = "2026-09-28.2";
 
 /**
  * Fingerprint of every table and column in the database. A test recomputes
@@ -20,4 +22,6 @@ export const legalInfo = () => ({
   // The host, as French law (LCEN art. 6) asks: name, address, phone. And where the data lives.
   hosting: process.env.HOSTING_PROVIDER || null,
   dataLocation: process.env.DATA_LOCATION || null,
+  // The notice only describes station export files when the feature is on.
+  stationTransfer: stationTransferEnabled(),
 });

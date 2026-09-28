@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, Bot, Check, Clock, Download, Lock, ListMusic, Settings2, ExternalLink } from "lucide-react";
 import { usePlayer } from "@/hooks/use-player";
+import { useSiteSettings } from "@/hooks/use-theme";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -128,6 +129,7 @@ export function StationEditorPage() {
   const navigate = useNavigate();
   // The save bar floats above the player bar when something is playing.
   const playing = !!usePlayer().station;
+  const transfer = useSiteSettings().data?.stationTransfer;
   const qc = useQueryClient();
 
   const existing = useQuery({
@@ -232,6 +234,7 @@ export function StationEditorPage() {
           <div className="flex flex-wrap items-center gap-4 text-sm">
           {!isNew && (
             <>
+              {transfer && (
               <a
                 href={`/api/radios/${slug}/export`}
                 download
@@ -240,6 +243,7 @@ export function StationEditorPage() {
               >
                 Export <Download className="size-3.5" />
               </a>
+              )}
               <Link to={`/r/${slug}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
                 Open the station <ExternalLink className="size-3.5" />
               </Link>

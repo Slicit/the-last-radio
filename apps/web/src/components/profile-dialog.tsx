@@ -14,7 +14,7 @@ import { initials } from "@/lib/format";
 const MAX_BYTES = 5 * 1024 * 1024;
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 
-/** Edit your name and photo. The server re-checks everything checked here. */
+/** Edit your display name and avatar. The server re-checks everything checked here. */
 export function ProfileDialog({ user, open, onOpenChange }: { user: User; open: boolean; onOpenChange: (o: boolean) => void }) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -59,7 +59,7 @@ export function ProfileDialog({ user, open, onOpenChange }: { user: User; open: 
       const form = new FormData();
       form.append("file", file);
       saved((await api.put<{ user: User }>("/me/avatar", form)).user);
-      toast.success("Photo updated");
+      toast.success("Avatar updated");
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -109,7 +109,7 @@ export function ProfileDialog({ user, open, onOpenChange }: { user: User; open: 
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" disabled={!!busy} onClick={() => fileRef.current?.click()}>
                   {busy === "photo" ? <Loader2 className="animate-spin" /> : <ImageUp />}
-                  {user.avatarUrl ? "Change photo" : "Upload photo"}
+                  {user.avatarUrl ? "Change avatar" : "Upload an avatar"}
                 </Button>
                 {user.avatarUrl && (
                   <Button type="button" variant="ghost" disabled={!!busy} onClick={remove}>
@@ -123,7 +123,7 @@ export function ProfileDialog({ user, open, onOpenChange }: { user: User; open: 
                 type="file"
                 accept={ACCEPT}
                 className="hidden"
-                aria-label="Profile photo"
+                aria-label="Avatar"
                 onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
               />
             </div>
@@ -150,9 +150,14 @@ export function ProfileDialog({ user, open, onOpenChange }: { user: User; open: 
               required
               minLength={2}
               maxLength={40}
+              autoComplete="nickname"
+              aria-describedby="profile-name-hint"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
+            <p id="profile-name-hint" className="text-xs text-muted-foreground">
+              A nickname is fine: it's what others see next to your songs, not necessarily your real name.
+            </p>
           </div>
 
           <div className="space-y-2 border-t pt-4">
@@ -177,7 +182,7 @@ export function ProfileDialog({ user, open, onOpenChange }: { user: User; open: 
             {deleting && (
               <div className="space-y-2 rounded-lg border border-destructive/40 p-3">
                 <p className="text-sm">
-                  This erases your email, password, photo, sessions, API keys and feedback. Songs you added stay in the
+                  This erases your email, password, avatar, sessions, API keys and feedback. Songs you added stay in the
                   stations' history as "Former listener". It can't be undone.
                 </p>
                 <Label htmlFor="delete-password">Confirm with your password</Label>

@@ -17,6 +17,7 @@ import { FeedbackAdmin } from "@/components/feedback-admin";
 import { StationImportDialog } from "@/components/station-import-dialog";
 import { ListenerStatsAdmin } from "@/components/listener-stats";
 import { SiteSettingsAdmin } from "@/components/site-settings-admin";
+import { useSiteSettings } from "@/hooks/use-theme";
 import { useMe } from "@/hooks/use-auth";
 import { useRadios, useStream } from "@/hooks/use-radio";
 import { api, type AdminUser, type Role } from "@/lib/api";
@@ -159,6 +160,7 @@ function StreamCell({ slug, active }: { slug: string; active: boolean }) {
 
 function RadiosAdmin() {
   const { data: radios, isLoading } = useRadios();
+  const transfer = useSiteSettings().data?.stationTransfer;
   const [importing, setImporting] = useState(false);
 
   return (
@@ -169,14 +171,16 @@ function RadiosAdmin() {
           <CardDescription>Turning one off in its settings takes it off the air.</CardDescription>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={() => setImporting(true)}>
-            <FileUp /> Import
-          </Button>
+          {transfer && (
+            <Button variant="outline" onClick={() => setImporting(true)}>
+              <FileUp /> Import
+            </Button>
+          )}
           <Link to="/admin/stations/new" className={buttonVariants()}>
             <Plus /> New station
           </Link>
         </div>
-        <StationImportDialog open={importing} onOpenChange={setImporting} />
+        {transfer && <StationImportDialog open={importing} onOpenChange={setImporting} />}
       </CardHeader>
       <CardContent>
         {isLoading ? (

@@ -33,7 +33,7 @@ describe("Profile and appearance", () => {
   it("The radio's default theme", async () => {
     const alex = await register("Alex"); // first account: admin
     const sam = await register("Sam");
-    expect((await call("GET", "/api/settings")).json).toEqual({ defaultTheme: "night", emailEnabled: true }); // tests capture mail
+    expect((await call("GET", "/api/settings")).json).toMatchObject({ defaultTheme: "night", emailEnabled: true }); // tests capture mail
     const set = await call("PATCH", "/api/admin/settings", { cookie: alex.cookie, origin: ORIGIN, body: { defaultTheme: "light" } });
     expect(set.json).toEqual({ defaultTheme: "light" });
     expect((await call("GET", "/api/settings")).json).toMatchObject({ defaultTheme: "light" }); // what guests get
@@ -46,7 +46,7 @@ describe("Profile and appearance", () => {
     expect((await call("PATCH", "/api/admin/settings", { cookie: alex.cookie, origin: ORIGIN, body: { defaultTheme: "hacker" } })).status).toBe(400);
   });
 
-  it("Setting a profile photo", async () => {
+  it("Setting an avatar", async () => {
     const sam = await register("Sam");
     const up = await upload(sam, await photo());
     expect(up.status).toBe(200);
@@ -62,7 +62,7 @@ describe("Profile and appearance", () => {
     expect((await app.fetch(new Request(`${ORIGIN}${url}`))).status).toBe(404);
   });
 
-  it("Profile photos are handled safely", async () => {
+  it("Avatars are handled safely", async () => {
     const sam = await register("Sam");
     const fake = await upload(sam, Buffer.from("<svg xmlns='http://www.w3.org/2000/svg' onload='alert(1)'/>" + " ".repeat(64)), "cat.png", "image/png");
     expect(fake).toMatchObject({ status: 415 });
@@ -75,7 +75,7 @@ describe("Profile and appearance", () => {
     expect(row.image.subarray(8, 12).toString()).toBe("WEBP"); // re-encoded, not the JPEG we sent
   });
 
-  it("someone can change their photo at most 10 times an hour", async () => {
+  it("someone can change their avatar at most 10 times an hour", async () => {
     const sam = await register("Sam");
     const img = await photo();
     for (let i = 0; i < 10; i++) expect((await upload(sam, img)).status).toBe(200);

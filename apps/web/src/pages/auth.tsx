@@ -52,9 +52,14 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
                   minLength={2}
                   maxLength={40}
                   autoComplete="nickname"
+                  aria-describedby="displayName-hint"
+                  placeholder="e.g. DJ Nightowl"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                 />
+                <p id="displayName-hint" className="text-xs text-muted-foreground">
+                  A nickname is fine: it's what others see next to your songs, not necessarily your real name.
+                </p>
               </div>
             )}
             <div className="space-y-2">

@@ -57,12 +57,12 @@ test("Choosing a theme", async ({ page, browser }) => {
   await page.keyboard.press("Escape");
 });
 
-test("Setting a profile photo", async ({ page }) => {
+test("Setting an avatar", async ({ page }) => {
   await page.goto("/");
   await menu(page).click();
   await page.getByRole("menuitem", { name: "Edit profile" }).click();
-  await page.getByLabel("Profile photo").setInputFiles({ name: "me.png", mimeType: "image/png", buffer: png(120, 80) });
-  await expect(page.getByText("Photo updated")).toBeVisible();
+  await page.getByLabel("Avatar", { exact: true }).setInputFiles({ name: "me.png", mimeType: "image/png", buffer: png(120, 80) });
+  await expect(page.getByText("Avatar updated")).toBeVisible();
   await expect(page.locator('header img[src^="/api/avatars/"]')).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "Remove" }).click();
   await expect(page.locator('header img[src^="/api/avatars/"]')).toHaveCount(0);

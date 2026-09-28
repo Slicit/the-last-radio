@@ -38,3 +38,9 @@ Feature: Moving a station
     And a file that isn't a station export, or mentions songs or people it doesn't describe, is refused
     And a song that was on air when the file was made goes back to the front of the line
     And files up to 50 MB are accepted, only from admins on the website
+
+  @integration
+  Scenario: A radio can turn export and import off
+    Given the radio's .env says STATION_TRANSFER=off
+    Then Export and Import are gone from Admin, and their API answers "not found"
+    And the privacy notice no longer mentions station export files

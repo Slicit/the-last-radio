@@ -3,13 +3,14 @@ import { z } from "zod";
 import { type AppEnv, requireAdmin } from "../lib/auth.js";
 import { getSettings, THEMES, updateSettings } from "../lib/settings.js";
 import { mailConfigured } from "../lib/mail.js";
+import { stationTransferEnabled } from "../lib/features.js";
 import { zValidator } from "../lib/validate.js";
 
 export const settingsBody = z.object({ defaultTheme: z.enum(THEMES) }).partial();
 
 /** Everyone: what the page needs up front (the default theme, whether email works). */
 export const settingsRoutes = new Hono<AppEnv>().get("/", async (c) =>
-  c.json({ ...(await getSettings()), emailEnabled: mailConfigured() }),
+  c.json({ ...(await getSettings()), emailEnabled: mailConfigured(), stationTransfer: stationTransferEnabled() }),
 );
 
 /** Admins: change radio-wide settings. */
