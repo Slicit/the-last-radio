@@ -11,7 +11,7 @@ import { api } from "@/lib/api";
 export const POLICY_VERSION = "2026-09-28";
 const UPDATED = { fr: "28 septembre 2026", en: "28 September 2026" };
 
-type Legal = { policyVersion: string; controller: string | null; contact: string | null };
+type Legal = { policyVersion: string; controller: string | null; contact: string | null; hosting: string | null; dataLocation: string | null };
 type Lang = "fr" | "en";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -68,6 +68,8 @@ export function PrivacyPage() {
         ? <><strong>{controller}</strong>, who runs this instance of The Last Radio.</>
         : <>the <strong>administrator of this instance</strong> of The Last Radio (contact details not set yet: ask through "Send feedback").</>;
   const reach = contact ? <a className="text-foreground underline" href={`mailto:${contact}`}>{contact}</a> : null;
+  const hosting = data?.hosting;
+  const where = data?.dataLocation;
 
   return (
     <article className="mx-auto max-w-3xl space-y-8 pb-12">
@@ -157,8 +159,18 @@ export function PrivacyPage() {
 
           <Section title="6. Hébergement et sécurité">
             <p>
-              The Last Radio est auto-hébergé par le responsable du traitement ; nous ne transférons pas vos données hors
-              de l'Union européenne, hormis le cas des vignettes ci-dessus. Mots de passe hachés avec argon2id et sel,
+              {hosting ? (
+                <>
+                  Hébergeur : <strong>{hosting}</strong>.{where && <> Vos données sont stockées en <strong>{where}</strong>.</>}{" "}
+                  Nous ne transférons pas vos données hors de l'Union européenne, hormis le cas des vignettes ci-dessus.
+                </>
+              ) : (
+                <>
+                  The Last Radio est auto-hébergé par le responsable du traitement ; nous ne transférons pas vos données
+                  hors de l'Union européenne, hormis le cas des vignettes ci-dessus.
+                </>
+              )}{" "}
+              Mots de passe hachés avec argon2id et sel,
               jetons hachés (SHA-256), limitation des tentatives, protections contre les requêtes intersites et vers des
               adresses internes, actions d'administration réservées au site.
             </p>
@@ -257,8 +269,18 @@ export function PrivacyPage() {
 
           <Section title="6. Hosting and security">
             <p>
-              The Last Radio is self-hosted by the data controller; we don't transfer your data outside the European
-              Union, except for the thumbnails above. Passwords hashed with salted argon2id, tokens hashed (SHA-256),
+              {hosting ? (
+                <>
+                  Hosted by <strong>{hosting}</strong>.{where && <> Your data is stored in <strong>{where}</strong>.</>} We
+                  don't transfer your data outside the European Union, except for the thumbnails above.
+                </>
+              ) : (
+                <>
+                  The Last Radio is self-hosted by the data controller; we don't transfer your data outside the European
+                  Union, except for the thumbnails above.
+                </>
+              )}{" "}
+              Passwords hashed with salted argon2id, tokens hashed (SHA-256),
               rate limits, protection against cross-site requests and requests to internal addresses, admin actions only
               from the website.
             </p>

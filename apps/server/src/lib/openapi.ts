@@ -99,7 +99,7 @@ const paging = {
 
 const ops: Record<string, Op> = {
   "GET /api/health": { summary: "Liveness check", tag: "Meta", auth: "public", ok: obj({ ok: bool }) },
-  "GET /api/legal": { summary: "Privacy notice version and data controller", tag: "Meta", auth: "public", ok: obj({ policyVersion: str, controller: nullable(str), contact: nullable(str) }) },
+  "GET /api/legal": { summary: "Privacy notice version, data controller and host", tag: "Meta", auth: "public", ok: obj({ policyVersion: str, controller: nullable(str), contact: nullable(str), hosting: nullable(str), dataLocation: nullable(str) }) },
   "GET /api/openapi.json": { summary: "This document", tag: "Meta", auth: "public", ok: { type: "object" } },
 
   "POST /api/auth/register": { summary: "Create an account (the first one becomes admin)", tag: "Accounts", auth: "public", body: schema(registerBody), ok: obj({ user: ref("User") }), okStatus: 201, description: "Sets the session cookie. Sends an email confirmation link when mail is configured." },

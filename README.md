@@ -100,6 +100,7 @@ Open <http://localhost:28700>, **sign up: the first account becomes the admin**,
 | `SMTP_URL` / `MAIL_FROM` | unset | Email for confirming addresses (private stations' domain rules). Without it, admins can mark people verified. |
 | `MAIL_RETURN_PATH` | the From address | Where bounces go (the envelope sender SPF checks). To send from the host itself, see [`deploy/mail`](deploy/mail/README.md) and `docker-compose.mail.yml`. |
 | `PRIVACY_CONTROLLER` / `PRIVACY_CONTACT` | unset | Who runs this radio and how to reach them, shown in the privacy notice. |
+| `HOSTING_PROVIDER` / `DATA_LOCATION` | unset | Who hosts the servers (name, address, phone, as French law asks) and where the data is stored, shown in the privacy notice. Unset: "self-hosted by the controller". |
 | `REGISTRATIONS_PER_HOUR` | `5` | Sign-ups allowed per IP per hour. |
 | `SONG_CHECK_INTERVAL_DAYS` | `7` | How often each song is re-checked. |
 | `CACHE_SIZE_GB` | `2` | Disk space for downloaded songs (about 4.5 MB each, so 2 GB ≈ 450 songs, 10 GB ≈ 2,300). The least recently played are evicted first. |

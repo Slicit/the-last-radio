@@ -7,6 +7,7 @@ Feature: Privacy
     When anyone opens "Privacy & cookies" from the footer
     Then they see, in French or English, who is responsible, what's kept and why and for how long,
       what's never collected, every cookie and storage key, who sees what, their rights and the CNIL
+    And who hosts the servers and where the data is stored, when the radio says so (HOSTING_PROVIDER, DATA_LOCATION)
     And the date it was last updated
 
   @e2e @integration

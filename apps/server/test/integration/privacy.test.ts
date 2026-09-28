@@ -37,6 +37,18 @@ describe("Privacy", () => {
     expect((await call("GET", "/api/legal")).json.policyVersion).toBe(POLICY_VERSION);
   });
 
+  it("names the host and where data lives, when set", async () => {
+    expect((await call("GET", "/api/legal")).json).toMatchObject({ hosting: null, dataLocation: null });
+    process.env.HOSTING_PROVIDER = "Example Hosting SAS, 1 rue Exemple, 75000 Paris, France";
+    process.env.DATA_LOCATION = "France";
+    try {
+      expect((await call("GET", "/api/legal")).json).toMatchObject({ hosting: "Example Hosting SAS, 1 rue Exemple, 75000 Paris, France", dataLocation: "France" });
+    } finally {
+      delete process.env.HOSTING_PROVIDER;
+      delete process.env.DATA_LOCATION;
+    }
+  });
+
   it("Downloading my data", async () => {
     const alex = await register("Alex");
     const sam = await register("Sam");

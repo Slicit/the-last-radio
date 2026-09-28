@@ -17,4 +17,7 @@ export const legalInfo = () => ({
   policyVersion: POLICY_VERSION,
   controller: process.env.PRIVACY_CONTROLLER || null,
   contact: process.env.PRIVACY_CONTACT || null,
+  // The host, as French law (LCEN art. 6) asks: name, address, phone. And where the data lives.
+  hosting: process.env.HOSTING_PROVIDER || null,
+  dataLocation: process.env.DATA_LOCATION || null,
 });
