@@ -12,6 +12,8 @@ type PlayerState = {
   volume: number;
   /** Seconds between the live edge and what the listener hears (HLS buffer). */
   latency: number;
+  /** Stopped because another tab of the radio started playing. */
+  pausedElsewhere: boolean;
   tune: (station: Station) => void;
   stop: () => void;
   setVolume: (v: number) => void;
@@ -20,6 +22,8 @@ type PlayerState = {
 const PlayerContext = createContext<PlayerState | null>(null);
 
 const RETRY_MS = 4000;
+// One radio at a time: tabs tell each other when they start playing.
+const CHANNEL = "lr-player";
 const HEARTBEAT_MS = 20_000;
 
 // crypto.randomUUID only exists in secure contexts (HTTPS/localhost), and the
@@ -56,11 +60,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>("idle");
   const [volume, setVolumeState] = useState(storedVolume);
   const [latency, setLatency] = useState(0);
+  const [pausedElsewhere, setPausedElsewhere] = useState(false);
+  const statusRef = useRef<Status>("idle");
+  statusRef.current = status;
+  // Each connection attempt gets a number; callbacks from an older one (a late
+  // error, a retry timer, Safari's play() promise) must not restart it.
+  const attemptRef = useRef(0);
+  const channelRef = useRef<BroadcastChannel | null>(null);
+  const tabId = useRef(randomId()).current;
   const qc = useQueryClient();
 
   if (!audioRef.current && typeof Audio !== "undefined") audioRef.current = new Audio();
 
   const teardown = useCallback(() => {
+    attemptRef.current++;
     if (retryRef.current) window.clearTimeout(retryRef.current);
     retryRef.current = null;
     hlsRef.current?.destroy();
@@ -76,20 +89,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const connect = useCallback(
     (s: Station) => {
       teardown();
+      const attempt = attemptRef.current;
+      const current = () => attempt === attemptRef.current;
       const audio = audioRef.current!;
       const src = `/hls/${s.slug}/index.m3u8`;
       setStatus("connecting");
 
       const retry = () => {
+        if (!current()) return;
         setStatus("offline");
-        retryRef.current = window.setTimeout(() => connect(s), RETRY_MS);
+        retryRef.current = window.setTimeout(() => current() && connect(s), RETRY_MS);
       };
 
       if (Hls.isSupported()) {
         const hls = new Hls({ liveSyncDurationCount: 3, manifestLoadingMaxRetry: 2 });
         hlsRef.current = hls;
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          audio.play().catch(() => setStatus("idle"));
+          if (current()) audio.play().catch(() => current() && setStatus("idle"));
         });
         hls.on(Hls.Events.ERROR, (_e, data) => {
           if (data.fatal) retry();
@@ -109,10 +125,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const tune = useCallback(
     (s: Station) => {
       setStation(s);
+      setPausedElsewhere(false);
+      channelRef.current?.postMessage({ type: "playing", tabId });
       connect(s);
     },
-    [connect],
+    [connect, tabId],
   );
+
+  // Another tab started playing: stop here, so two stations never overlap.
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel(CHANNEL);
+    channelRef.current = channel;
+    channel.onmessage = (e: MessageEvent<{ type?: string; tabId?: string }>) => {
+      if (e.data?.type !== "playing" || e.data.tabId === tabId || statusRef.current === "idle") return;
+      teardown();
+      setStatus("idle");
+      setPausedElsewhere(true);
+    };
+    return () => {
+      channel.close();
+      channelRef.current = null;
+    };
+  }, [tabId, teardown]);
 
   const stop = useCallback(() => {
     teardown();
@@ -166,7 +201,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => teardown, [teardown]);
 
   return (
-    <PlayerContext.Provider value={{ station, status, volume, latency, tune, stop, setVolume }}>
+    <PlayerContext.Provider value={{ station, status, volume, latency, pausedElsewhere, tune, stop, setVolume }}>
       {children}
     </PlayerContext.Provider>
   );

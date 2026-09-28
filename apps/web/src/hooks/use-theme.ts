@@ -27,7 +27,7 @@ function storedTheme(): Theme {
   }
 }
 
-export type SiteSettings = { defaultTheme: Theme };
+export type SiteSettings = { defaultTheme: Theme; emailEnabled?: boolean };
 
 /** Radio-wide settings anyone can read (the default theme). */
 export const useSiteSettings = () =>

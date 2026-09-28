@@ -16,6 +16,14 @@ Feature: Listening
     # Check in a browser: navigate around while listening.
 
   @e2e
+  Scenario: One station at a time, even across tabs
+    Given Sam is listening to "Main Stage" in one tab
+    When Sam starts "Night Shift" in another tab or window of the same browser
+    Then "Main Stage" stops, and its player says "Paused: another tab started playing"
+    And pressing Play there takes over again, stopping the other tab
+    # Regression 2026-09-28: every tab had its own player, so stations played over each other.
+
+  @e2e
   Scenario: Listening over plain HTTP on a local network
     Given the radio is served over http on a LAN address
     When a visitor starts listening

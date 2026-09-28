@@ -44,6 +44,14 @@ Feature: Private stations
     And a link stops working if the account's email changed since
     And without email set up (SMTP_URL), admins can "Mark verified" by hand, and the station editor says so
 
+  @e2e
+  Scenario: A banner reminds people to confirm their email
+    Given Vera is signed in and hasn't confirmed her email, and the radio can send email
+    Then a banner under the header says to confirm it, and why (private stations open to her domain)
+    When Vera clicks "Send confirmation email"
+    Then it says the link was sent to her address, and to check the spam folder
+    And it can be hidden until the next page load; it's gone once the address is confirmed
+
   @integration
   Scenario: Admins see every station
     Then admins see and manage private stations whether or not they're members

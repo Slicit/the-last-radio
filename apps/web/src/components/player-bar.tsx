@@ -9,14 +9,16 @@ import { useRadio } from "@/hooks/use-radio";
 import { adderName, closedLabel } from "@/lib/format";
 
 export function PlayerBar() {
-  const { station, status, volume, setVolume, tune, stop } = usePlayer();
+  const { station, status, volume, setVolume, tune, stop, pausedElsewhere } = usePlayer();
   const { data } = useRadio(station?.slug);
   if (!station) return null;
 
   const np = data?.nowPlaying;
   const active = status === "playing" || status === "connecting";
   const subtitle =
-    status === "connecting"
+    status === "idle" && pausedElsewhere
+      ? "Paused: another tab started playing"
+      : status === "connecting"
       ? "Tuning in…"
       : status === "offline"
         ? (closedLabel(data?.radio.hours ?? { open: true, next: null }) ?? "Stream offline, retrying…")

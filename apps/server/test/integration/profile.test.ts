@@ -33,10 +33,10 @@ describe("Profile and appearance", () => {
   it("The radio's default theme", async () => {
     const alex = await register("Alex"); // first account: admin
     const sam = await register("Sam");
-    expect((await call("GET", "/api/settings")).json).toEqual({ defaultTheme: "night" });
+    expect((await call("GET", "/api/settings")).json).toEqual({ defaultTheme: "night", emailEnabled: true }); // tests capture mail
     const set = await call("PATCH", "/api/admin/settings", { cookie: alex.cookie, origin: ORIGIN, body: { defaultTheme: "light" } });
     expect(set.json).toEqual({ defaultTheme: "light" });
-    expect((await call("GET", "/api/settings")).json).toEqual({ defaultTheme: "light" }); // what guests get
+    expect((await call("GET", "/api/settings")).json).toMatchObject({ defaultTheme: "light" }); // what guests get
     const kim = await register("Kim");
     expect(kim.user).toMatchObject({ theme: "light" }); // new accounts start with it
     const me = await call("GET", "/api/auth/me", { cookie: sam.cookie });

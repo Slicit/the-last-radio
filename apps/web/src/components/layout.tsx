@@ -1,14 +1,16 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { useAckPrivacy } from "@/components/privacy-ack";
-import { Bot, LogOut, MessageSquare, Palette, Radio as RadioIcon, Shield, UserPen } from "lucide-react";
+import { Bot, LogOut, MailWarning, MessageSquare, Palette, Radio as RadioIcon, Shield, UserPen, X } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { ProfileDialog } from "@/components/profile-dialog";
-import { useTheme } from "@/hooks/use-theme";
-import type { Theme } from "@/lib/api";
+import { useSiteSettings, useTheme } from "@/hooks/use-theme";
+import { api, type Theme } from "@/lib/api";
 import { useState } from "react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +52,44 @@ function PrivacyBanner() {
   );
 }
 
+/** Signed in but the address isn't confirmed: say why it matters, and send the link. */
+function ConfirmEmailBanner({ email }: { email: string }) {
+  const [hidden, setHidden] = useState(false); // until the next page load, on purpose: nothing stored
+  const [sent, setSent] = useState(false);
+  const send = useMutation({
+    mutationFn: () => api.post("/me/verify-email"),
+    onSuccess: () => setSent(true),
+    onError: (e) => toast.error(e.message),
+  });
+  if (hidden) return null;
+  return (
+    <div role="region" aria-label="Confirm your email" className="border-b bg-amber-100 text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2 text-sm">
+        <MailWarning className="size-4 shrink-0" />
+        {sent ? (
+          <span>
+            Sent! Open the link we emailed to <strong>{email}</strong> (check your spam folder too).
+          </span>
+        ) : (
+          <span>
+            Confirm your email, <strong>{email}</strong>, to join the private stations your email domain opens.
+          </span>
+        )}
+        <span className="ml-auto flex items-center gap-2">
+          {!sent && (
+            <Button size="sm" variant="outline" className="h-7 bg-transparent" disabled={send.isPending} onClick={() => send.mutate()}>
+              {send.isPending ? "Sending…" : "Send confirmation email"}
+            </Button>
+          )}
+          <button type="button" aria-label="Hide" className="rounded p-1 opacity-70 hover:opacity-100" onClick={() => setHidden(true)}>
+            <X className="size-4" />
+          </button>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function Layout() {
   const { user } = useMe();
   const { logout } = useAuthActions();
@@ -59,6 +99,7 @@ export function Layout() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  const site = useSiteSettings();
 
   return (
     <div className={cn("min-h-svh", station && "pb-20")}>
@@ -143,6 +184,9 @@ export function Layout() {
       </header>
       {user?.privacyAckRequired && location.pathname !== "/login" && location.pathname !== "/privacy" && (
         <PrivacyBanner />
+      )}
+      {user && !user.emailVerified && site.data?.emailEnabled && location.pathname !== "/verify-email" && (
+        <ConfirmEmailBanner email={user.email} />
       )}
       <main className="mx-auto max-w-6xl px-4 py-8">
         <Outlet />

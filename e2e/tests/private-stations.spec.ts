@@ -83,3 +83,30 @@ test.describe(() => {
     expect((await (await page.request.get("/api/radios/e2e-access/access")).json()).domains).toEqual(["second-e2e.test"]);
   });
 });
+
+test("A banner reminds people to confirm their email", async ({ page, request }) => {
+  const email = `wendy-${Date.now()}@banner-e2e.test`;
+  await page.goto("/register");
+  await page.fill("#displayName", "Wendy");
+  await page.fill("#email", email);
+  await page.fill("#password", "wendy-password-e2e");
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Create account" }).click();
+
+  const banner = page.getByRole("region", { name: "Confirm your email" });
+  await expect(banner).toContainText(`Confirm your email, ${email}`);
+  await banner.getByRole("button", { name: "Send confirmation email" }).click();
+  await expect(banner).toContainText(`Sent! Open the link we emailed to ${email}`);
+  await banner.getByRole("button", { name: "Hide" }).click();
+  await expect(banner).toHaveCount(0);
+  await page.reload(); // hidden for this visit only
+  await expect(page.getByRole("region", { name: "Confirm your email" })).toBeVisible();
+
+  // Once confirmed, it's gone for good.
+  const link = await confirmationLink(request, email);
+  await page.goto(new URL(link).pathname + new URL(link).search);
+  await expect(page.getByText("Email confirmed")).toBeVisible();
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: /Wendy/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Confirm your email" })).toHaveCount(0);
+});
