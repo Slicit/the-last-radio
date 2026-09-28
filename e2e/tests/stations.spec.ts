@@ -107,3 +107,22 @@ test.describe(() => {
     await expect(bar).toContainText("All changes saved");
   });
 });
+
+// specs/features/song-records.feature
+test.describe(() => {
+  test.use(asAdmin);
+  test("People left out of statistics", async ({ page }) => {
+    await page.goto("/admin/users");
+    await page.getByRole("searchbox", { name: "Search people" }).fill("Sam Player");
+    // Wait for the search to narrow the list, so we click the row that stays.
+    await expect(page.getByRole("row", { name: /Alex Admin/ })).toHaveCount(0);
+    const toggle = page.getByRole("switch", { name: "Count Sam Player in stats" });
+    await expect(toggle).toBeChecked();
+    await toggle.click();
+    await expect(page.getByText("Left out of stats")).toBeVisible();
+    await expect(toggle).not.toBeChecked();
+    await toggle.click(); // leave the fixture as it was
+    await expect(page.getByText("Counted in stats again")).toBeVisible();
+    await expect(toggle).toBeChecked();
+  });
+});

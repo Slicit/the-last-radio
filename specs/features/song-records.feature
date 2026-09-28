@@ -25,3 +25,12 @@ Feature: Song records
   Scenario: Top players count people only
     Then "Top players" ranks people by songs of theirs that aired
     And Alfred never appears in it
+
+  @integration @e2e
+  Scenario: People left out of statistics
+    Given Alex switches off "In stats" for Tess (a test account) in Admin → Users
+    Then Tess isn't ranked in top players at all (Sam moves up, nobody is just hidden)
+    And Tess's adds, downvotes and upvotes don't count in song records, station stats or Alfred's scores
+    And Tess isn't counted in the listener charts (live counts, which decide skip votes, stay as they are)
+    But the songs Tess added still aired, and count as plays
+    And switching it back on counts Tess again, past activity included

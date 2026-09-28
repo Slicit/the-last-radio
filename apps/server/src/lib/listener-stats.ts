@@ -1,8 +1,8 @@
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
-import { listenerCount } from "./listeners.js";
+import { countedListeners } from "./listeners.js";
 
-const { listenerSamples, radios } = schema;
+const { listenerSamples, radios, users } = schema;
 
 export const SAMPLE_MS = 5 * 60_000;
 
@@ -14,9 +14,11 @@ export async function sampleListeners(now = Date.now()) {
   const active = await db.select({ id: radios.id }).from(radios).where(eq(radios.isActive, true));
   if (!active.length) return 0;
   const at = slotOf(now);
+  // People left out of statistics (test accounts…) aren't counted as listeners either.
+  const except = new Set((await db.select({ id: users.id }).from(users).where(eq(users.excludeFromStats, true))).map((u) => u.id));
   await db
     .insert(listenerSamples)
-    .values(active.map((r) => ({ radioId: r.id, at, listeners: listenerCount(r.id) })))
+    .values(active.map((r) => ({ radioId: r.id, at, listeners: countedListeners(r.id, except) })))
     .onConflictDoNothing();
   return active.length;
 }

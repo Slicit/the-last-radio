@@ -33,6 +33,13 @@ export function listenerCount(radioId: string): number {
   return live(radioId)?.size ?? 0;
 }
 
+/** Listeners, leaving out signed-in people in `except` (those left out of statistics). */
+export function countedListeners(radioId: string, except: Set<string>): number {
+  let n = 0;
+  for (const b of live(radioId)?.values() ?? []) if (!b.userId || !except.has(b.userId)) n++;
+  return n;
+}
+
 export function isListening(radioId: string, userId: string): boolean {
   for (const b of live(radioId)?.values() ?? []) if (b.userId === userId) return true;
   return false;

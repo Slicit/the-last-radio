@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { BarChart3, FileUp, Lock, MessageSquare, Pencil, Plus, Radio as RadioIcon, Search, Settings, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -280,6 +281,16 @@ function UsersAdmin({ selfId }: { selfId: string }) {
     },
     onError: (e) => toast.error(e.message),
   });
+  const setCounted = useMutation({
+    mutationFn: ({ id, counted }: { id: string; counted: boolean }) => api.patch(`/users/${id}`, { excludeFromStats: !counted }),
+    onSuccess: (_, { counted }) => {
+      toast.success(counted ? "Counted in stats again" : "Left out of stats: top players, song records and listener charts");
+      qc.invalidateQueries({ queryKey: ["users"] });
+      // Their past activity changes the numbers everywhere (station stats, song records).
+      qc.invalidateQueries({ queryKey: ["radio"] });
+    },
+    onError: (e) => toast.error(e.message),
+  });
   const setRole = useMutation({
     mutationFn: ({ id, role }: { id: string; role: Role }) => api.patch(`/users/${id}`, { role }),
     onSuccess: () => {
@@ -334,6 +345,11 @@ function UsersAdmin({ selfId }: { selfId: string }) {
                 <TableHead>User</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>
+                  <span title="Off: left out of top players, song records (adds, votes, upvotes) and listener charts. For test accounts or admins trying things.">
+                    In stats
+                  </span>
+                </TableHead>
                 <TableHead className="text-right">Added</TableHead>
                 <TableHead className="text-right">Aired</TableHead>
                 <TableHead className="text-right">Joined</TableHead>
@@ -369,6 +385,14 @@ function UsersAdmin({ selfId }: { selfId: string }) {
                         <SelectItem value="admin">admin</SelectItem>
                       </SelectContent>
                     </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={!u.excludeFromStats}
+                      disabled={setCounted.isPending}
+                      aria-label={`Count ${u.displayName} in stats`}
+                      onCheckedChange={(counted) => setCounted.mutate({ id: u.id, counted })}
+                    />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{u.pushes}</TableCell>
                   <TableCell className="text-right tabular-nums">{u.plays}</TableCell>

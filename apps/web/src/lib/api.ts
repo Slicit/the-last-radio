@@ -146,7 +146,7 @@ export type StreamStatus = {
   hlsUrl: string;
 };
 
-export type AdminUser = User & { createdAt: string; pushes: number; plays: number };
+export type AdminUser = User & { createdAt: string; pushes: number; plays: number; excludeFromStats: boolean };
 
 export type StationAccess = {
   isPrivate: boolean;

@@ -28,6 +28,12 @@ function userFilters(q: z.infer<typeof usersQuery>): SQL[] {
   return out;
 }
 
+export const userPatch = z.object({
+  role: z.enum(["admin", "player"]).optional(),
+  emailVerified: z.boolean().optional(),
+  excludeFromStats: z.boolean().optional(),
+});
+
 export const userRoutes = new Hono<AppEnv>()
   .use(requireAdmin)
   .get("/", zValidator("query", usersQuery), async (c) => {
@@ -41,6 +47,7 @@ export const userRoutes = new Hono<AppEnv>()
         displayName: users.displayName,
         role: users.role,
         emailVerified: sql<boolean>`${users.emailVerifiedAt} is not null`,
+        excludeFromStats: users.excludeFromStats,
         createdAt: users.createdAt,
         pushes: sql<number>`count(${queueItems.id})::int`,
         plays: sql<number>`count(${queueItems.startedAt})::int`,
@@ -54,7 +61,7 @@ export const userRoutes = new Hono<AppEnv>()
       .offset(offsetOf(q));
     return c.json({ ...pageOf(rows, total, q), users: rows });
   })
-  .patch("/:id", zValidator("json", z.object({ role: z.enum(["admin", "player"]).optional(), emailVerified: z.boolean().optional() })), async (c) => {
+  .patch("/:id", zValidator("json", userPatch), async (c) => {
     const id = c.req.param("id");
     const body = c.req.valid("json");
     if (body.role && id === c.get("user")!.id) throw new HTTPException(400, { message: "You can't change your own role" });
@@ -64,9 +71,11 @@ export const userRoutes = new Hono<AppEnv>()
         ...(body.role ? { role: body.role } : {}),
         // An admin vouching for someone's address (e.g. when email isn't set up).
         ...(body.emailVerified !== undefined ? { emailVerifiedAt: body.emailVerified ? new Date() : null } : {}),
+        // Leave someone out of statistics (a test account, an admin trying things).
+        ...(body.excludeFromStats !== undefined ? { excludeFromStats: body.excludeFromStats } : {}),
       })
       .where(eq(users.id, id))
-      .returning({ id: users.id, role: users.role });
+      .returning({ id: users.id, role: users.role, excludeFromStats: users.excludeFromStats });
     if (!u) throw new HTTPException(404, { message: "No such user" });
     return c.json({ user: u });
   });

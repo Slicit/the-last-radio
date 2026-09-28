@@ -99,6 +99,13 @@
       "when": 1790527691775,
       "tag": "0013_app_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790609150406,
+      "tag": "0014_exclude_from_stats",
+      "breakpoints": true
     }
   ]
 }

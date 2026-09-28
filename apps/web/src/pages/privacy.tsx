@@ -8,8 +8,8 @@ import { api } from "@/lib/api";
  * sharing or keeping something differently, update both languages below and
  * POLICY_VERSION (here and in apps/server/src/lib/legal.ts). See CLAUDE.md.
  */
-export const POLICY_VERSION = "2026-09-26.5";
-const UPDATED = { fr: "26 septembre 2026", en: "26 September 2026" };
+export const POLICY_VERSION = "2026-09-28";
+const UPDATED = { fr: "28 septembre 2026", en: "28 September 2026" };
 
 type Legal = { policyVersion: string; controller: string | null; contact: string | null };
 type Lang = "fr" | "en";
@@ -102,7 +102,7 @@ export function PrivacyPage() {
             <Table
               head={["Données", "Pourquoi", "Base légale", "Durée"]}
               rows={[
-                [<><strong>Compte</strong> : e-mail, nom affiché, mot de passe (jamais en clair : empreinte argon2id salée), rôle, thème, dates de création</>, "Vous identifier et faire fonctionner votre compte", "Exécution du service (art. 6.1.b RGPD)", "Jusqu'à la suppression du compte"],
+                [<><strong>Compte</strong> : e-mail, nom affiché, mot de passe (jamais en clair : empreinte argon2id salée), rôle, thème, dates de création, et si les administrateurs vous excluent des statistiques (comptes de test, par exemple)</>, "Vous identifier et faire fonctionner votre compte", "Exécution du service (art. 6.1.b RGPD)", "Jusqu'à la suppression du compte"],
                 [<><strong>Photo de profil</strong> (facultative), ré-encodée en 256×256, métadonnées (EXIF, GPS) supprimées</>, "Vous représenter auprès des autres auditeurs", "Exécution du service", "Jusqu'à ce que vous la retiriez ou supprimiez le compte"],
                 [<><strong>Session</strong> : cookie {code("lr_session")} (jeton aléatoire, conservé uniquement sous forme d'empreinte)</>, "Vous garder connecté", "Exécution du service", "30 jours, ou jusqu'à la déconnexion"],
                 [<><strong>Chansons ajoutées</strong> (lien, titre, station, dates), <strong>votes pour passer</strong> une chanson et <strong>votes pour la réentendre</strong> (3 par jour)</>, "Faire tourner la file, l'historique, les statistiques des stations et les choix d'Alfred", "Exécution du service ; intérêt légitime (art. 6.1.f)", "Tant que la station existe ; anonymisées à la suppression de votre compte"],
@@ -203,7 +203,7 @@ export function PrivacyPage() {
             <Table
               head={["Data", "Why", "Legal basis", "How long"]}
               rows={[
-                [<><strong>Account</strong>: email, display name, password (never in clear: a salted argon2id hash), role, theme, creation dates</>, "To identify you and run your account", "Providing the service (GDPR art. 6.1.b)", "Until you delete the account"],
+                [<><strong>Account</strong>: email, display name, password (never in clear: a salted argon2id hash), role, theme, creation dates, and whether the admins leave you out of statistics (test accounts, for example)</>, "To identify you and run your account", "Providing the service (GDPR art. 6.1.b)", "Until you delete the account"],
                 [<><strong>Profile photo</strong> (optional), re-encoded to 256×256, metadata (EXIF, GPS) removed</>, "To show you to other listeners", "Providing the service", "Until you remove it or delete the account"],
                 [<><strong>Session</strong>: the {code("lr_session")} cookie (a random token, stored only as a hash)</>, "To keep you signed in", "Providing the service", "30 days, or until you sign out"],
                 [<><strong>Songs you add</strong> (link, title, station, dates), <strong>votes to skip</strong> and <strong>upvotes</strong> (3 a day)</>, "To run the queue, history, station stats and Alfred's picks", "Providing the service; legitimate interest (art. 6.1.f)", "As long as the station exists; anonymised when you delete your account"],

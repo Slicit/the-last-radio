@@ -4,14 +4,14 @@
  * changes; everyone is then asked to acknowledge it again at sign-in.
  * See CLAUDE.md, "Privacy notice".
  */
-export const POLICY_VERSION = "2026-09-26.5";
+export const POLICY_VERSION = "2026-09-28";
 
 /**
  * Fingerprint of every table and column in the database. A test recomputes
  * it: when the schema changes, the test fails until someone has checked the
  * privacy notice still describes what we store, then updates this value.
  */
-export const DATA_INVENTORY_HASH = "825aa32bfee79401";
+export const DATA_INVENTORY_HASH = "1b779f18d8baa4bb";
 
 export const legalInfo = () => ({
   policyVersion: POLICY_VERSION,

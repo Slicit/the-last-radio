@@ -142,6 +142,7 @@ export const meRoutes = new Hono<AppEnv>()
         theme: me.theme,
         hasProfilePhoto: !!me.avatarUpdatedAt,
         emailVerifiedAt: me.emailVerifiedAt,
+        leftOutOfStatistics: me.excludeFromStats,
         createdAt: me.createdAt,
         privacyNoticeAcknowledged: { version: me.privacyAckVersion, at: me.privacyAckAt },
       },

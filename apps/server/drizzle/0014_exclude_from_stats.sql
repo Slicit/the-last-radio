@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "exclude_from_stats" boolean DEFAULT false NOT NULL;

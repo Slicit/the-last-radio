@@ -40,7 +40,7 @@ export type SongRecord = {
 const SCORE = sql`(
   count(*) filter (where qi.status = 'played' and not qi.is_fill)
   + 0.5 * count(*) filter (where qi.status = 'played' and qi.is_fill)
-  + 2 * count(distinct qi.user_id) filter (where not qi.is_fill)
+  + 2 * count(distinct qi.user_id) filter (where not qi.is_fill and not coalesce(adder.exclude_from_stats, false))
   + 2 * coalesce(max(u.n), 0)
   - coalesce(sum(v.n), 0)
   - 3 * count(*) filter (where qi.skip_reason in ('votes', 'admin'))
@@ -62,7 +62,7 @@ export async function songRecords(radioId: string, sort: SongSort = "played", li
       count(*) filter (where qi.status = 'played' and not qi.is_fill)::int as plays_by_people,
       count(*) filter (where qi.status = 'played' and qi.is_fill)::int as plays_by_alfred,
       count(*) filter (where qi.started_at is not null)::int as airings,
-      count(distinct qi.user_id) filter (where not qi.is_fill)::int as adders,
+      count(distinct qi.user_id) filter (where not qi.is_fill and not coalesce(adder.exclude_from_stats, false))::int as adders,
       coalesce(sum(v.n), 0)::int as downvotes,
       coalesce(max(u.n), 0)::int as upvotes,
       count(*) filter (where qi.skip_reason in ('votes', 'admin'))::int as skips,
@@ -72,8 +72,17 @@ export async function songRecords(radioId: string, sort: SongSort = "played", li
       ${SCORE}::float as score
     from queue_items qi
     join tracks t on t.id = qi.track_id
-    left join (select queue_item_id, count(*) as n from skip_votes group by 1) v on v.queue_item_id = qi.id
-    left join (select track_id, count(*) as n from song_upvotes where radio_id = ${radioId} group by 1) u on u.track_id = t.id
+    -- People left out of statistics don't count as adders, voters or fans.
+    left join users adder on adder.id = qi.user_id
+    left join (
+      select sv.queue_item_id, count(*) as n from skip_votes sv
+      join users x on x.id = sv.user_id and not x.exclude_from_stats group by 1
+    ) v on v.queue_item_id = qi.id
+    left join (
+      select su.track_id, count(*) as n from song_upvotes su
+      join users x on x.id = su.user_id and not x.exclude_from_stats
+      where su.radio_id = ${radioId} group by 1
+    ) u on u.track_id = t.id
     where qi.radio_id = ${radioId} and qi.status <> 'removed'
     group by t.id
     having count(*) filter (where qi.started_at is not null) > 0

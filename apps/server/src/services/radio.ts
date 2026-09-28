@@ -272,7 +272,8 @@ export async function stats(radio: Radio) {
       .from(queueItems)
       .innerJoin(users, eq(users.id, queueItems.userId))
       .innerJoin(tracks, eq(tracks.id, queueItems.trackId))
-      .where(aired)
+      // Left out of statistics: not ranked at all (not just hidden).
+      .where(and(aired, eq(users.excludeFromStats, false)))
       .groupBy(users.id)
       // Ties in a stable order (most listening time, then name), not whatever Postgres returns.
       .orderBy(desc(plays), sql`coalesce(sum(${tracks.durationSec}), 0) desc`, asc(users.displayName), asc(users.id))
@@ -281,7 +282,7 @@ export async function stats(radio: Radio) {
       .select({
         plays,
         uniqueTracks: sql<number>`count(distinct ${queueItems.trackId})::int`,
-        uniquePlayers: sql<number>`count(distinct ${queueItems.userId})::int`,
+        uniquePlayers: sql<number>`count(distinct ${queueItems.userId}) filter (where ${queueItems.userId} not in (select id from users where exclude_from_stats))::int`,
         airtimeSec: sql<number>`coalesce(sum(extract(epoch from (coalesce(${queueItems.endedAt}, now()) - ${queueItems.startedAt}))), 0)::int`,
       })
       .from(queueItems)
@@ -290,7 +291,8 @@ export async function stats(radio: Radio) {
       .select({ downvotes: sql<number>`count(*)::int` })
       .from(skipVotes)
       .innerJoin(queueItems, eq(queueItems.id, skipVotes.queueItemId))
-      .where(eq(queueItems.radioId, radio.id)),
+      .innerJoin(users, eq(users.id, skipVotes.userId))
+      .where(and(eq(queueItems.radioId, radio.id), eq(users.excludeFromStats, false))),
   ]);
   return { topPlayers, totals: { ...totals, downvotes } };
 }

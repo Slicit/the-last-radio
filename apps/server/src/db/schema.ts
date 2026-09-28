@@ -49,6 +49,8 @@ export const users = pgTable("users", {
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   // Set when the account was deleted: the row stays, anonymised, so station history holds.
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  // Left out of statistics (top players, song records, listener charts): test accounts, admins testing.
+  excludeFromStats: boolean("exclude_from_stats").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
