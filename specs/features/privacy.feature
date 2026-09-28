@@ -10,6 +10,12 @@ Feature: Privacy
     And who hosts the servers and where the data is stored, when the radio says so (HOSTING_PROVIDER, DATA_LOCATION)
     And the date it was last updated
 
+  @e2e
+  Scenario: Linking straight to a language
+    Then /privacy/fr and /privacy/en open the notice in French or English
+    And /privacy follows the browser's language, and the Français/English buttons change the address
+    And any other language goes back to /privacy
+
   @e2e @integration
   Scenario: Acknowledging the notice when signing up
     When Sam signs up

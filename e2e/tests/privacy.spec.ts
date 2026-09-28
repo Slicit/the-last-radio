@@ -13,6 +13,19 @@ test("Reading the privacy notice", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Privacy and cookies" })).toBeVisible();
 });
 
+test("Linking straight to a language", async ({ page }) => {
+  await page.goto("/privacy/fr");
+  await expect(page.getByRole("heading", { name: "Confidentialité et cookies" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "fr");
+  await page.goto("/privacy/en");
+  await expect(page.getByRole("heading", { name: "Privacy and cookies" })).toBeVisible();
+  // The buttons change the address too, so the page can be shared in either language.
+  await page.getByRole("radio", { name: "Français" }).click();
+  await expect(page).toHaveURL(/\/privacy\/fr$/);
+  await page.goto("/privacy/de");
+  await expect(page).toHaveURL(/\/privacy$/);
+});
+
 test("Acknowledging the notice when signing up", async ({ page }) => {
   await page.goto("/register");
   await page.fill("#displayName", "New Listener");

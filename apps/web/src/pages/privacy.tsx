@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { Navigate, useNavigate, useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -63,7 +64,15 @@ function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
 const code = (s: string) => <code className="rounded bg-muted px-1 text-foreground">{s}</code>;
 
 export function PrivacyPage() {
-  const [lang, setLang] = useState<Lang>(() => (navigator.language?.toLowerCase().startsWith("fr") ? "fr" : "en"));
+  // /privacy/fr and /privacy/en link straight to a language; /privacy follows the browser's.
+  const { lang: inUrl } = useParams();
+  const navigate = useNavigate();
+  const lang: Lang = inUrl === "fr" || inUrl === "en" ? inUrl : navigator.language?.toLowerCase().startsWith("fr") ? "fr" : "en";
+  const setLang = (l: Lang) => navigate(`/privacy/${l}`, { replace: true });
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    return () => void (document.documentElement.lang = "en");
+  }, [lang]);
   const { data } = useQuery({ queryKey: ["legal"], queryFn: () => api.get<Legal>("/legal") });
   const controller = data?.controller;
   const contact = data?.contact;
@@ -78,6 +87,8 @@ export function PrivacyPage() {
   const reach = contact ? <a className="text-foreground underline" href={`mailto:${contact}`}>{contact}</a> : null;
   const hosting = data?.hosting;
   const where = data?.dataLocation;
+
+  if (inUrl !== undefined && inUrl !== "fr" && inUrl !== "en") return <Navigate to="/privacy" replace />;
 
   return (
     <article className="mx-auto max-w-3xl space-y-8 pb-12">

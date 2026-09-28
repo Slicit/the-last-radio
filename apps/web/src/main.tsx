@@ -56,6 +56,7 @@ const router = createBrowserRouter([
       { path: "/connect", element: <ConnectPage /> },
       { path: "/oauth/authorize", element: <OAuthAuthorizePage /> },
       { path: "/privacy", element: <PrivacyPage /> },
+      { path: "/privacy/:lang", element: <PrivacyPage /> },
       { path: "/verify-email", element: <VerifyEmailPage /> },
       { path: "/developers", element: <DevelopersPage /> },
     ],
