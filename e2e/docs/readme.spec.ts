@@ -151,11 +151,12 @@ test("README screenshots", async ({ browser, baseURL }) => {
   await shot(mp, "connect");
   await mp.request.patch("/api/me", { data: { theme: "night" }, headers: { origin: baseURL! } });
 
-  // Admin: feedback and stations; the station editor.
+  // Admin: the feedback inbox; listeners; stations; the station editor.
   await stage(ap);
-  await ap.goto("/admin");
-  await expect(ap.getByText("unread")).toBeVisible();
+  await ap.goto("/admin/feedback");
+  await expect(ap.getByText("unread").first()).toBeVisible();
   await shot(ap, "admin");
+  await ap.goto("/admin");
   // Listeners over time: all stations and each, hovering the busiest evening.
   const listeners = ap.locator("[data-slot=card]", { has: ap.getByText("People listening, counted every 5 minutes") });
   await expect(listeners.getByRole("region", { name: "All stations" })).toBeVisible();
@@ -169,7 +170,7 @@ test("README screenshots", async ({ browser, baseURL }) => {
   // Moving a station: the import dialog, with a file exported from Main Stage.
   const exported = await R.get("/api/radios/main/export");
   await ap.mouse.move(0, 0);
-  await ap.evaluate(() => window.scrollTo(0, 0));
+  await ap.goto("/admin/stations");
   await ap.getByRole("button", { name: "Import" }).click();
   const dialog = ap.getByRole("dialog", { name: "Import a station" });
   await dialog.getByLabel("Station file").setInputFiles({ name: "main-2026-09-26.lastradio.json", mimeType: "application/json", buffer: await exported.body() });

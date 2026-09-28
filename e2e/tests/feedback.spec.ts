@@ -15,7 +15,7 @@ test("Sending feedback, then admins triage it", async ({ browser }) => {
   await expect(player.getByText("Thanks! Your feedback was sent.")).toBeVisible();
 
   const admin = await (await browser.newContext(asAdmin)).newPage();
-  await admin.goto("/admin");
+  await admin.goto("/admin/feedback");
   await expect(admin.getByText(/\d+ unread/)).toBeVisible();
   const item = admin.getByRole("listitem").filter({ hasText: "The volume slider is hard to grab on phones (e2e)" });
   await item.getByRole("button", { name: "Vote up" }).click();

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { Link, Navigate, useBlocker, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Bot, Clock, Download, Lock, ListMusic, Settings2, ExternalLink } from "lucide-react";
+import { ArrowLeft, Bot, Check, Clock, Download, Lock, ListMusic, Settings2, ExternalLink } from "lucide-react";
+import { usePlayer } from "@/hooks/use-player";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -125,6 +126,8 @@ export function StationEditorPage() {
   const isNew = !slug;
   const { user, isLoading: meLoading } = useMe();
   const navigate = useNavigate();
+  // The save bar floats above the player bar when something is playing.
+  const playing = !!usePlayer().station;
   const qc = useQueryClient();
 
   const existing = useQuery({
@@ -205,8 +208,8 @@ export function StationEditorPage() {
     return (
       <p className="text-muted-foreground">
         {existing.error.message}.{" "}
-        <Link to="/admin" className="text-foreground underline">
-          Back to Admin
+        <Link to="/admin/stations" className="text-foreground underline">
+          Back to stations
         </Link>
       </p>
     );
@@ -221,13 +224,14 @@ export function StationEditorPage() {
   return (
     <form onSubmit={submit} className="space-y-6 pb-24">
       <div className="space-y-2">
-        <Link to="/admin" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" /> Admin
+        <Link to="/admin/stations" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-4" /> Stations
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-3xl font-bold tracking-tight">{isNew ? "New station" : form.name || "Station"}</h1>
+          <div className="flex flex-wrap items-center gap-4 text-sm">
           {!isNew && (
-            <div className="flex flex-wrap items-center gap-4 text-sm">
+            <>
               <a
                 href={`/api/radios/${slug}/export`}
                 download
@@ -239,14 +243,19 @@ export function StationEditorPage() {
               <Link to={`/r/${slug}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
                 Open the station <ExternalLink className="size-3.5" />
               </Link>
-            </div>
+            </>
           )}
+            {/* Saving is never hidden: here, and in the bar at the bottom. */}
+            <Button type="submit" disabled={save.isPending || (!dirty && !isNew)}>
+              {isNew ? "Create station" : dirty ? "Save changes" : <><Check /> Saved</>}
+            </Button>
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">Listeners find it at /r/{form.slug || "…"}</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[200px_1fr]">
-        <nav aria-label="Sections" className="hidden lg:block">
+      <div className="grid gap-6 xl:grid-cols-[170px_minmax(0,1fr)]">
+        <nav aria-label="Sections" className="hidden xl:block">
           <ul className="sticky top-20 space-y-1 text-sm">
             {SECTIONS.map(({ id, label, icon: Icon }) => (
               <li key={id}>
@@ -414,21 +423,32 @@ export function StationEditorPage() {
         </div>
       </div>
 
-      {/* Appears only when there's something to save. */}
-      <div
-        className={cn(
-          "fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur transition-transform",
-          dirty || isNew ? "translate-y-0" : "translate-y-full",
-        )}
-        aria-hidden={!(dirty || isNew)}
-      >
-        <div className="mx-auto flex max-w-6xl items-center justify-end gap-2 px-4 py-3">
-          {dirty && !isNew && <span className="mr-auto text-sm text-muted-foreground">Unsaved changes</span>}
-          <Button type="button" variant="outline" onClick={() => (isNew ? navigate("/admin") : setForm(initial))}>
-            {isNew ? "Cancel" : "Discard"}
-          </Button>
-          <Button type="submit" disabled={save.isPending}>
-            {isNew ? "Create station" : "Save changes"}
+      {/* Always there, floating above the player bar: what's saved, and the button to save. */}
+      <div role="region" aria-label="Save" className={cn("sticky z-30", playing ? "bottom-20" : "bottom-4")}>
+        <div
+          className={cn(
+            "flex flex-wrap items-center justify-end gap-2 rounded-lg border bg-card px-4 py-3 shadow-xl ring-1 ring-black/5 transition-colors",
+            dirty && "border-amber-500/60",
+          )}
+        >
+          <span className={cn("mr-auto flex items-center gap-1.5 text-sm", dirty ? "font-medium text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
+            {isNew ? (
+              "Name the station, then create it."
+            ) : dirty ? (
+              "Unsaved changes"
+            ) : (
+              <>
+                <Check className="size-4" /> All changes saved
+              </>
+            )}
+          </span>
+          {(dirty || isNew) && (
+            <Button type="button" variant="outline" onClick={() => (isNew ? navigate("/admin/stations") : setForm(initial))}>
+              {isNew ? "Cancel" : "Discard"}
+            </Button>
+          )}
+          <Button type="submit" disabled={save.isPending || (!dirty && !isNew)}>
+            {save.isPending ? "Saving…" : isNew ? "Create station" : "Save changes"}
           </Button>
         </div>
       </div>

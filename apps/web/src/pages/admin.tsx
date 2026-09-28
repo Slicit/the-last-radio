@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { Link, Navigate } from "react-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { Link, Navigate, NavLink, Outlet } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { FileUp, Lock, Pencil, Plus } from "lucide-react";
+import { BarChart3, FileUp, Lock, MessageSquare, Pencil, Plus, Radio as RadioIcon, Search, Settings, Users } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,20 +20,124 @@ import { useMe } from "@/hooks/use-auth";
 import { useRadios, useStream } from "@/hooks/use-radio";
 import { api, type AdminUser, type Role } from "@/lib/api";
 import { ago, hoursSummary, windowLabel } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
-export function AdminPage() {
+// ------------------------------------------------------------------ layout
+
+/** Unread feedback, for the menu badge (shares the inbox's cache key, so it refreshes with it). */
+function useUnreadFeedback() {
+  const { data } = useQuery({
+    queryKey: ["admin-feedback", "unread"],
+    queryFn: () => api.get<{ unread: number }>("/admin/feedback?view=inbox&pageSize=1"),
+    refetchInterval: 60_000,
+  });
+  return data?.unread ?? 0;
+}
+
+const SECTIONS = [
+  { to: "/admin", label: "Overview", icon: BarChart3, end: true },
+  { to: "/admin/feedback", label: "Feedback", icon: MessageSquare },
+  { to: "/admin/stations", label: "Stations", icon: RadioIcon },
+  { to: "/admin/users", label: "Users", icon: Users },
+  { to: "/admin/settings", label: "Settings", icon: Settings },
+] as const;
+
+/**
+ * Admin: a menu on the left (a row of tabs on phones) and one page per area.
+ * The station editor opens inside it too.
+ */
+export function AdminLayout() {
   const { user, isLoading } = useMe();
+  const unread = useUnreadFeedback();
   if (isLoading) return <Skeleton className="h-64" />;
   if (user?.role !== "admin") return <Navigate to="/" replace />;
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-bold tracking-tight">Admin</h1>
-      <FeedbackAdmin />
-      <ListenerStatsAdmin />
-      <RadiosAdmin />
-      <UsersAdmin selfId={user.id} />
-      <SiteSettingsAdmin />
+    <div className="grid gap-6 lg:grid-cols-[180px_minmax(0,1fr)]">
+      <nav aria-label="Admin" className="lg:sticky lg:top-20 lg:self-start">
+        <div className="mb-2 hidden px-2 text-xs font-medium tracking-widest text-muted-foreground uppercase lg:block">Admin</div>
+        <ul className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0">
+          {SECTIONS.map(({ to, label, icon: Icon, ...rest }) => (
+            <li key={to} className="shrink-0">
+              <NavLink
+                to={to}
+                end={"end" in rest}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm whitespace-nowrap transition-colors",
+                    isActive ? "bg-secondary font-medium text-secondary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )
+                }
+              >
+                <Icon className="size-4" /> {label}
+                {label === "Feedback" && unread > 0 && (
+                  <Badge className="ml-auto h-4.5 px-1.5 text-[0.65rem]" aria-label={`${unread} unread`}>
+                    {unread}
+                  </Badge>
+                )}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <div className="min-w-0">
+        <Outlet />
+      </div>
     </div>
+  );
+}
+
+function PageTitle({ children, description }: { children: ReactNode; description?: ReactNode }) {
+  return (
+    <div className="mb-6 space-y-1">
+      <h1 className="text-2xl font-bold tracking-tight">{children}</h1>
+      {description && <p className="text-sm text-muted-foreground">{description}</p>}
+    </div>
+  );
+}
+
+export function AdminOverviewPage() {
+  return (
+    <>
+      <PageTitle description="How many people listen, on every station.">Overview</PageTitle>
+      <ListenerStatsAdmin />
+    </>
+  );
+}
+
+export function AdminFeedbackPage() {
+  return (
+    <>
+      <PageTitle description="Ideas and bugs people sent: vote a priority, mark read, archive.">Feedback</PageTitle>
+      <FeedbackAdmin />
+    </>
+  );
+}
+
+export function AdminStationsPage() {
+  return (
+    <>
+      <PageTitle description="Each active station runs its own stream. Open one to edit its rules, who can listen and its hours.">Stations</PageTitle>
+      <RadiosAdmin />
+    </>
+  );
+}
+
+export function AdminUsersPage() {
+  const { user } = useMe();
+  return (
+    <>
+      <PageTitle description="Admins manage stations, skip songs and add without limits.">Users</PageTitle>
+      <UsersAdmin selfId={user!.id} />
+    </>
+  );
+}
+
+export function AdminSettingsPage() {
+  return (
+    <>
+      <PageTitle description="Radio-wide settings. Changes here apply as soon as you pick them.">Settings</PageTitle>
+      <SiteSettingsAdmin />
+    </>
   );
 }
 
@@ -58,8 +164,8 @@ function RadiosAdmin() {
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div className="space-y-1.5">
-          <CardTitle>Stations</CardTitle>
-          <CardDescription>Each active station runs its own stream. Disabling one takes it off the air.</CardDescription>
+          <CardTitle>All stations</CardTitle>
+          <CardDescription>Turning one off in its settings takes it off the air.</CardDescription>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="outline" onClick={() => setImporting(true)}>
@@ -134,13 +240,35 @@ function RadiosAdmin() {
 
 // ------------------------------------------------------------------ users
 
+type UserFilter = "all" | "admins" | "unconfirmed" | "former";
+const USER_FILTERS: { value: UserFilter; label: string }[] = [
+  { value: "all", label: "Everyone" },
+  { value: "admins", label: "Admins" },
+  { value: "unconfirmed", label: "Not confirmed" },
+  { value: "former", label: "Former" },
+];
+
 function UsersAdmin({ selfId }: { selfId: string }) {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [filter, setFilter] = useState<UserFilter>("all");
+  const [search, setSearch] = useState("");
+  const [q, setQ] = useState("");
+  // Search as you type, without a request per keystroke.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setQ(search.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [search]);
   const { data, isLoading } = useQuery({
-    queryKey: ["users", page, pageSize],
-    queryFn: () => api.get<{ items: AdminUser[]; total: number }>(`/users?page=${page}&pageSize=${pageSize}`),
+    queryKey: ["users", page, pageSize, filter, q],
+    queryFn: () =>
+      api.get<{ items: AdminUser[]; total: number }>(
+        `/users?${new URLSearchParams({ page: String(page), pageSize: String(pageSize), filter, ...(q ? { q } : {}) })}`,
+      ),
     placeholderData: (prev) => prev,
   });
   const users = data?.items;
@@ -163,9 +291,38 @@ function UsersAdmin({ selfId }: { selfId: string }) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Users</CardTitle>
-        <CardDescription>Admins can manage stations, skip songs and add without limits.</CardDescription>
+      <CardHeader className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-52 flex-1">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              aria-label="Search people"
+              placeholder="Search by name or email"
+              className="pl-8"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-1 overflow-x-auto" role="radiogroup" aria-label="Show">
+            {USER_FILTERS.map((f) => (
+              <Button
+                key={f.value}
+                size="sm"
+                className="shrink-0"
+                role="radio"
+                aria-checked={filter === f.value}
+                variant={filter === f.value ? "secondary" : "ghost"}
+                onClick={() => {
+                  setFilter(f.value);
+                  setPage(1);
+                }}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -221,7 +378,10 @@ function UsersAdmin({ selfId }: { selfId: string }) {
             </TableBody>
           </Table>
         )}
-        <Pager page={page} pageSize={pageSize} total={data?.total ?? 0} onPage={setPage} onPageSize={setPageSize} label="people" />
+        {!isLoading && data?.total === 0 && (
+          <p className="py-8 text-center text-sm text-muted-foreground">{q ? `Nobody matches “${q}”.` : "Nobody here."}</p>
+        )}
+        <Pager always page={page} pageSize={pageSize} total={data?.total ?? 0} onPage={setPage} onPageSize={setPageSize} label="people" />
       </CardContent>
     </Card>
   );

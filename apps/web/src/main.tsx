@@ -10,7 +10,7 @@ import { Layout } from "@/components/layout";
 import { HomePage } from "@/pages/home";
 import { RadioPage } from "@/pages/radio";
 import { AuthPage } from "@/pages/auth";
-import { AdminPage } from "@/pages/admin";
+import { AdminFeedbackPage, AdminLayout, AdminOverviewPage, AdminSettingsPage, AdminStationsPage, AdminUsersPage } from "@/pages/admin";
 import { ErrorPage } from "@/pages/error";
 import { ConnectPage } from "@/pages/connect";
 import { OAuthAuthorizePage } from "@/pages/oauth-authorize";
@@ -40,9 +40,19 @@ const router = createBrowserRouter([
       { path: "/r/:slug", element: <RadioPage /> },
       { path: "/login", element: <AuthPage mode="login" /> },
       { path: "/register", element: <AuthPage mode="register" /> },
-      { path: "/admin", element: <AdminPage /> },
-      { path: "/admin/stations/new", element: <StationEditorPage /> },
-      { path: "/admin/stations/:slug", element: <StationEditorPage /> },
+      {
+        path: "/admin",
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <AdminOverviewPage /> },
+          { path: "feedback", element: <AdminFeedbackPage /> },
+          { path: "stations", element: <AdminStationsPage /> },
+          { path: "stations/new", element: <StationEditorPage /> },
+          { path: "stations/:slug", element: <StationEditorPage /> },
+          { path: "users", element: <AdminUsersPage /> },
+          { path: "settings", element: <AdminSettingsPage /> },
+        ],
+      },
       { path: "/connect", element: <ConnectPage /> },
       { path: "/oauth/authorize", element: <OAuthAuthorizePage /> },
       { path: "/privacy", element: <PrivacyPage /> },

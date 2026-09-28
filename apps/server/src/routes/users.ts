@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "../lib/validate.js";
 import { z } from "zod";
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { db, schema } from "../db/index.js";
 import { type AppEnv, requireAdmin } from "../lib/auth.js";
@@ -9,11 +9,31 @@ import { offsetOf, pageOf, pagingQuery } from "../lib/paging.js";
 
 const { users, queueItems } = schema;
 
+export const usersQuery = pagingQuery.extend({
+  // Name or email contains this.
+  q: z.string().trim().max(100).optional(),
+  filter: z.enum(["all", "admins", "unconfirmed", "former"]).default("all"),
+});
+
+function userFilters(q: z.infer<typeof usersQuery>): SQL[] {
+  const out: SQL[] = [];
+  if (q.q) {
+    const like = `%${q.q.replace(/[\\%_]/g, "\\$&")}%`;
+    out.push(or(ilike(users.displayName, like), ilike(users.email, like))!);
+  }
+  if (q.filter === "former") out.push(isNotNull(users.deletedAt));
+  else out.push(isNull(users.deletedAt)); // former listeners and placeholders only when asked for
+  if (q.filter === "admins") out.push(eq(users.role, "admin"));
+  if (q.filter === "unconfirmed") out.push(isNull(users.emailVerifiedAt));
+  return out;
+}
+
 export const userRoutes = new Hono<AppEnv>()
   .use(requireAdmin)
-  .get("/", zValidator("query", pagingQuery), async (c) => {
+  .get("/", zValidator("query", usersQuery), async (c) => {
     const q = c.req.valid("query");
-    const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(users);
+    const where = and(...userFilters(q));
+    const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(users).where(where);
     const rows = await db
       .select({
         id: users.id,
@@ -27,6 +47,7 @@ export const userRoutes = new Hono<AppEnv>()
       })
       .from(users)
       .leftJoin(queueItems, eq(queueItems.userId, users.id))
+      .where(where)
       .groupBy(users.id)
       .orderBy(asc(users.createdAt))
       .limit(q.pageSize)

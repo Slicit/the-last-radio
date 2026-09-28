@@ -20,7 +20,7 @@ test.describe(() => {
     await writeFile(path, await exported.body());
     const source = await exported.json();
 
-    await page.goto("/admin");
+    await page.goto("/admin/stations");
     await page.getByRole("button", { name: "Import" }).click();
     const dialog = page.getByRole("dialog", { name: "Import a station" });
     await dialog.getByLabel("Station file").setInputFiles(path);

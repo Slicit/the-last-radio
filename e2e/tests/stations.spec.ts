@@ -5,18 +5,19 @@ test.describe(() => {
   test.use(asAdmin);
 
   test("An admin creates a station", async ({ page }) => {
-    await page.goto("/admin");
+    await page.goto("/admin/stations");
     await page.getByRole("link", { name: "New station" }).click();
     await expect(page).toHaveURL(/\/admin\/stations\/new$/);
     await page.getByLabel("Name").fill("Night Shift E2E");
     await expect(page.getByLabel("Address")).toHaveValue("night-shift-e2e");
     await page.getByLabel("Songs per person").fill("5");
-    await page.getByRole("button", { name: "Create station" }).click();
+    await page.getByRole("region", { name: "Save" }).getByRole("button", { name: "Create station" }).click();
     await expect(page.getByText("Station created")).toBeVisible();
     // Straight on to the station's own editor, ready for people and hours.
     await expect(page).toHaveURL(/\/admin\/stations\/night-shift-e2e$/);
     await expect(page.getByRole("heading", { name: "Night Shift E2E" })).toBeVisible();
-    await page.getByRole("link", { name: "Admin", exact: true }).first().click();
+    await page.getByRole("link", { name: "Stations", exact: true }).first().click();
+    await expect(page).toHaveURL(/\/admin\/stations$/);
     await expect(page.getByRole("row", { name: /Night Shift E2E/ })).toBeVisible();
     // It goes on air (silence) within seconds.
     await expect(page.getByRole("row", { name: /Night Shift E2E/ }).getByText("On air")).toBeVisible({ timeout: 30_000 });
@@ -67,5 +68,42 @@ test.describe(() => {
     await card.getByRole("radio", { name: "3 months" }).click();
     await expect(card.getByRole("radio", { name: "3 months" })).toHaveAttribute("aria-checked", "true");
     await expect(card.getByRole("region", { name: "All stations" })).toBeVisible();
+  });
+});
+
+// specs/features/stations.feature
+test.describe(() => {
+  test.use(asAdmin);
+  test("Admin pages have their own menu", async ({ page }) => {
+    await page.goto("/admin");
+    const menu = page.getByRole("navigation", { name: "Admin" });
+    for (const [label, path, heading] of [
+      ["Feedback", "/admin/feedback", "Feedback"],
+      ["Stations", "/admin/stations", "Stations"],
+      ["Users", "/admin/users", "Users"],
+      ["Settings", "/admin/settings", "Settings"],
+      ["Overview", "/admin", "Overview"],
+    ]) {
+      await menu.getByRole("link", { name: new RegExp(`^${label}`) }).click();
+      await expect(page).toHaveURL(new RegExp(`${path}$`));
+      await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+    }
+    // Users: search, filters and the page count are always there.
+    await menu.getByRole("link", { name: "Users" }).click();
+    await page.getByRole("searchbox", { name: "Search people" }).fill("no-such-person-xyz");
+    await expect(page.getByText("Nobody matches “no-such-person-xyz”.")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Pages" })).toContainText("0 people");
+  });
+
+  test("Saving a station is always in sight", async ({ page }) => {
+    await page.goto("/admin/stations/e2e-main");
+    const bar = page.getByRole("region", { name: "Save" });
+    await expect(bar).toContainText("All changes saved");
+    await expect(bar.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await page.getByLabel("Description").fill("Saved from the bar (e2e)");
+    await expect(bar).toContainText("Unsaved changes");
+    await bar.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.locator("[data-sonner-toast]").getByText("Saved", { exact: true })).toBeVisible();
+    await expect(bar).toContainText("All changes saved");
   });
 });

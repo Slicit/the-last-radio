@@ -71,7 +71,7 @@ test("Setting a profile photo", async ({ page }) => {
 test("The radio's default theme", async ({ browser }) => {
   const admin = await (await browser.newContext(asAdmin)).newPage();
   try {
-    await admin.goto("/admin");
+    await admin.goto("/admin/settings");
     const choice = admin.getByRole("radiogroup", { name: "Default theme" });
     await choice.getByRole("radio", { name: /Vintage/ }).click();
     await expect(admin.getByText("Default theme: Vintage")).toBeVisible();

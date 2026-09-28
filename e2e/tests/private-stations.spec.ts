@@ -61,26 +61,30 @@ test.describe(() => {
 
   test("Managing who may listen from the station editor", async ({ page }) => {
     // Regression 2026-09-26: the domain's "Add" was a form inside the editor's form, so it saved the station instead.
+    // Unique per run, so a retry starts clean.
+    const run = Date.now().toString(36);
+    const team = `team-${run}.test`;
+    const second = `second-${run}.test`;
     await page.request.post("/api/radios", { data: { slug: "e2e-access", name: "E2E Access", isPrivate: true, autofillBelowSec: 0 } });
     await page.goto("/admin/stations/e2e-access");
     const domains = page.getByRole("group", { name: "Email domains" });
-    await domains.getByRole("textbox").fill("@Team-E2E.test");
+    await domains.getByRole("textbox").fill(`@${team.toUpperCase()}`);
     await domains.getByRole("button", { name: "Add" }).click();
-    await expect(page.getByText("@team-e2e.test added")).toBeVisible();
-    await expect(page.getByText("Nobody at this domain has an account yet")).toBeVisible();
-    expect((await (await page.request.get("/api/radios/e2e-access/access")).json()).domains).toEqual(["team-e2e.test"]);
+    await expect(page.getByText(`@${team} added`)).toBeVisible();
+    await expect(page.getByText("Nobody at this domain has an account yet").first()).toBeVisible();
+    expect((await (await page.request.get("/api/radios/e2e-access/access")).json()).domains).toContain(team);
     await expect(page.getByText("Unsaved changes")).toBeHidden();
 
     // Enter works too, and never saves the station around it.
-    await domains.getByRole("textbox").fill("second-e2e.test");
+    await domains.getByRole("textbox").fill(second);
     await domains.getByRole("textbox").press("Enter");
-    await expect(page.getByText("@second-e2e.test added")).toBeVisible();
-    await expect(page.getByText("Saved", { exact: true })).toHaveCount(0);
+    await expect(page.getByText(`@${second} added`)).toBeVisible();
+    await expect(page.locator("[data-sonner-toast]").getByText("Saved", { exact: true })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Remove team-e2e.test" }).click();
-    await expect(page.getByText("@team-e2e.test removed")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Remove team-e2e.test" })).toHaveCount(0);
-    expect((await (await page.request.get("/api/radios/e2e-access/access")).json()).domains).toEqual(["second-e2e.test"]);
+    await page.getByRole("button", { name: `Remove ${team}` }).click();
+    await expect(page.getByText(`@${team} removed`)).toBeVisible();
+    await expect(page.getByRole("button", { name: `Remove ${team}` })).toHaveCount(0);
+    expect((await (await page.request.get("/api/radios/e2e-access/access")).json()).domains).toEqual(expect.arrayContaining([second]));
   });
 });
 

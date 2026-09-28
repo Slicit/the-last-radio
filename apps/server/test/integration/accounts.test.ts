@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "../../src/db/index.js";
-import { call, freshIp, register } from "./helpers.js";
+import { call, freshIp, ORIGIN, register } from "./helpers.js";
 
 // specs/features/accounts.feature
 describe("Accounts", () => {
@@ -87,5 +87,30 @@ describe("Accounts", () => {
     expect(me.json.user).toBeNull();
     const [row] = await db.select().from(schema.users).where(eq(schema.users.id, sam.user.id));
     expect(row).toBeDefined();
+  });
+});
+
+// specs/features/stations.feature: "Admin pages have their own menu"
+describe("The people list", () => {
+  it("can be searched and filtered", async () => {
+    const alex = await register("Alex"); // admin
+    const vera = await register("Vera Search");
+    await register("Sam");
+    await db.update(schema.users).set({ emailVerifiedAt: new Date() }).where(eq(schema.users.id, vera.user.id));
+    const list = async (qs: string) => (await call("GET", `/api/users?${qs}`, { cookie: alex.cookie })).json;
+    const names = (r: any) => r.items.map((u: any) => u.displayName).sort();
+
+    expect(names(await list(""))).toEqual(["Alex", "Sam", "Vera Search"]);
+    expect(names(await list("q=search"))).toEqual(["Vera Search"]); // name, any case
+    expect(names(await list(`q=${encodeURIComponent(vera.email.slice(0, 8))}`))).toEqual(["Vera Search"]); // email
+    expect(names(await list("filter=admins"))).toEqual(["Alex"]);
+    expect(names(await list("filter=unconfirmed"))).toEqual(["Alex", "Sam"]);
+    expect((await list("q=%25")).total).toBe(0); // % is a letter here, not a wildcard
+
+    // Deleted accounts only under "former".
+    await call("DELETE", "/api/me", { cookie: vera.cookie, origin: ORIGIN, body: { password: vera.password } });
+    expect(names(await list(""))).toEqual(["Alex", "Sam"]);
+    expect(names(await list("filter=former"))).toEqual(["Former listener"]);
+    expect((await list("pageSize=1")).total).toBe(2);
   });
 });

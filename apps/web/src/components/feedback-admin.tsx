@@ -61,7 +61,7 @@ export function FeedbackAdmin() {
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
         <div className="space-y-1.5">
           <CardTitle className="flex items-center gap-2">
-            Feedback {!!data?.unread && <Badge>{data.unread} unread</Badge>}
+            Messages {!!data?.unread && <Badge>{data.unread} unread</Badge>}
           </CardTitle>
           <CardDescription>What listeners are telling you. Vote to set priorities; archive when handled.</CardDescription>
         </div>

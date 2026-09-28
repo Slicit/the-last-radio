@@ -69,7 +69,7 @@ private, open only in the evening), and let your AI assistant add songs for you.
 |---|---|
 | ![Stations](docs/screenshots/home.png) **Stations**: what's on everywhere, private ones marked with a lock. | ![Search](docs/screenshots/search.png) **Search**: find a song by name and add it in one click. |
 | ![Songs](docs/screenshots/songs-light.png) **Song records** in the *Light* theme: crowd favourites and why Alfred leaves a song alone. | ![Vintage](docs/screenshots/station-vintage.png) **The *Vintage* theme**. |
-| ![Admin](docs/screenshots/admin.png) **Admin**: the feedback inbox and every station's rules. | ![Station editor](docs/screenshots/station-editor.png) **The station editor**: who can listen (and who a domain lets in), hours, Alfred. |
+| ![Admin](docs/screenshots/admin.png) **Admin**: its own menu for listeners, feedback, stations, people and settings; here, the feedback inbox. | ![Station editor](docs/screenshots/station-editor.png) **The station editor**: who can listen (and who a domain lets in), hours, Alfred. |
 | ![Listeners](docs/screenshots/listeners.png) **Listener stats**: every station's audience, average and peak, up to 3 months back. | ![Import](docs/screenshots/import.png) **Moving a station**: import a file exported on another radio, history and all. |
 | ![Connect your AI](docs/screenshots/connect.png) **Connect your AI**: the MCP address, API keys, connected apps. | ![Phone](docs/screenshots/mobile.png) **On a phone**. |
 

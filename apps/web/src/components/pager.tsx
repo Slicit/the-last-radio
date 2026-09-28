@@ -11,6 +11,7 @@ export function Pager({
   onPage,
   onPageSize,
   label = "items",
+  always = false,
 }: {
   page: number;
   pageSize: number;
@@ -18,9 +19,11 @@ export function Pager({
   onPage: (p: number) => void;
   onPageSize: (s: number) => void;
   label?: string;
+  /** Show even when everything fits on one page (counts and the page size stay visible). */
+  always?: boolean;
 }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
-  if (total <= PAGE_SIZES[0] && page === 1) return null;
+  if (!always && total <= PAGE_SIZES[0] && page === 1) return null;
   const from = total ? (page - 1) * pageSize + 1 : 0;
   const to = Math.min(total, page * pageSize);
   return (

@@ -38,7 +38,7 @@ export function HomePage() {
           <CardContent className="py-10 text-center text-muted-foreground">
             No stations yet.{" "}
             {user?.role === "admin" ? (
-              <Link to="/admin" className="text-foreground underline">
+              <Link to="/admin/stations/new" className="text-foreground underline">
                 Create the first one
               </Link>
             ) : (

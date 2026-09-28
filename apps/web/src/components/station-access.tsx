@@ -94,6 +94,7 @@ export function StationAccessPanel({ slug }: { slug: string }) {
 
   return (
     <div className="space-y-4 rounded-lg border p-3">
+      <p className="text-xs text-muted-foreground">People and domains are saved as soon as you add or remove them.</p>
       <div className="space-y-2">
         <Label htmlFor="member-email">People</Label>
         <AddField
